@@ -2222,20 +2222,22 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             {filename}
                                         </span>
                                     </div>
-                                    <div data-pdf-key={label} className="relative flex flex-col rounded-xl border border-secondary bg-primary" style={{ height: 480 }}>
-                                        <iframe
-                                            src={src}
-                                            className="min-h-0 flex-1 w-full rounded-xl"
-                                            style={{ colorScheme: "light" }}
-                                            title={label}
-                                        />
-                                        {!isActive && (
-                                            <div
-                                                className="absolute inset-0 z-10 cursor-pointer rounded-xl"
-                                                onClick={onActivate}
+                                    <div data-pdf-key={label} className="flex flex-col rounded-xl border border-secondary bg-primary" style={{ height: 480 }}>
+                                        <div className="relative min-h-0 flex-1">
+                                            <iframe
+                                                src={src}
+                                                className="h-full w-full rounded-t-xl"
+                                                style={{ colorScheme: "light" }}
+                                                title={label}
                                             />
-                                        )}
-                                        <div className="flex items-center gap-2 px-4 py-3">
+                                            {!isActive && (
+                                                <div
+                                                    className="absolute inset-0 z-10 cursor-pointer rounded-t-xl"
+                                                    onClick={onActivate}
+                                                />
+                                            )}
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-2 px-4 py-3">
                                             {onDelete && (
                                                 <button
                                                     type="button"
