@@ -17,13 +17,11 @@ import {
     ChevronUp,
     Download01,
     Edit01,
-    Hourglass03,
     LifeBuoy01,
     Mail05,
     MessageSquare01,
     PhoneCall01,
     Printer,
-    PlusSquare,
     SearchLg,
     Settings01,
     Table,
@@ -1918,7 +1916,6 @@ const DecisionTab = ({ lead, onDecision, existingDecision }: { lead: Lead; onDec
 
 type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision";
 
-const ME = { name: "Jake Torres", initials: "JT" };
 
 const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage }; onDecision: (d: "approved" | "declined") => void }) => {
     const navigate = useNavigate();
