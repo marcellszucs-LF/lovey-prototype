@@ -2168,7 +2168,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 <div className="relative flex min-h-0 flex-1 flex-col rounded-xl border border-secondary bg-primary">
                                     <iframe
                                         ref={pdfIframeRef}
-                                        src="/love finance limited_credit_report (1).pdf"
+                                        src="/credit_report_placeholder.pdf"
                                         className="min-h-0 flex-1 w-full rounded-xl"
                                         style={{ colorScheme: "light" }}
                                         title="Credit Report"
@@ -2183,8 +2183,8 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             Print
                                         </button>
                                         <a
-                                            href="/love finance limited_credit_report (1).pdf"
-                                            download="love finance limited_credit_report (1).pdf"
+                                            href="/credit_report_placeholder.pdf"
+                                            download="credit_report_placeholder.pdf"
                                             className="flex items-center gap-1.5 rounded-lg border border-primary bg-primary px-3.5 py-2 text-sm font-semibold text-secondary shadow-xs transition hover:bg-primary_hover"
                                         >
                                             <Download01 className="size-4 text-fg-quaternary" />
@@ -2195,7 +2195,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                             </div>
                         )}
                         {tab === "documents" && (() => {
-                            const PLACEHOLDER_PDF = "/love finance limited_credit_report (1).pdf";
+                            const UPLOAD_PLACEHOLDER_PDF = "/bank_statement_placeholder.pdf";
                             const fmtUploadTime = (d: Date) => {
                                 const secs = Math.floor((Date.now() - d.getTime()) / 1000);
                                 if (secs < 60) return "just now";
@@ -2206,10 +2206,10 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 return `${Math.floor(hrs / 24)}d`;
                             };
                             const staticDocs = [
-                                { label: "Accounts", filename: `${lead.company} — Accounts.pdf`, timestamp: lead.timeAgo },
-                                { label: "Bank Statement", filename: `${lead.company} — Bank Statement.pdf`, timestamp: lead.timeAgo },
+                                { label: "Accounts", filename: `${lead.company} — Accounts.pdf`, src: "/accounts_full_placeholder.pdf", timestamp: lead.timeAgo },
+                                { label: "Bank Statement", filename: `${lead.company} — Bank Statement.pdf`, src: "/bank_statement_placeholder.pdf", timestamp: lead.timeAgo },
                             ];
-                            const uploadedDocs = [...documents].map((d, i) => ({ label: d.name, filename: d.name, src: PLACEHOLDER_PDF, originalIndex: i, timestamp: fmtUploadTime(d.uploadedAt) })).reverse();
+                            const uploadedDocs = [...documents].map((d, i) => ({ label: d.name, filename: d.name, src: UPLOAD_PLACEHOLDER_PDF, originalIndex: i, timestamp: fmtUploadTime(d.uploadedAt) })).reverse();
                             const DocCard = ({ label, filename, src, timestamp, onDelete, isActive, onActivate }: { label: string; filename: string; src: string; timestamp: string; onDelete?: () => void; isActive?: boolean; onActivate?: () => void }) => (
                                 <div className="flex min-h-0 flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
                                     <div className="flex h-11 shrink-0 items-center gap-4 pl-5 pr-3">
@@ -2311,7 +2311,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     ))}
                                     {/* Static documents */}
                                     {staticDocs.map((d) => (
-                                        <DocCard key={d.label} label={d.label} filename={d.filename} src={PLACEHOLDER_PDF} timestamp={d.timestamp} isActive={activePdfKey === d.label} onActivate={() => setActivePdfKey(d.label)} />
+                                        <DocCard key={d.label} label={d.label} filename={d.filename} src={d.src} timestamp={d.timestamp} isActive={activePdfKey === d.label} onActivate={() => setActivePdfKey(d.label)} />
                                     ))}
                                 </div>
                             );
