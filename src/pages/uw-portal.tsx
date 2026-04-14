@@ -2168,7 +2168,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 <div className="relative flex min-h-0 flex-1 flex-col rounded-xl border border-secondary bg-primary">
                                     <iframe
                                         ref={pdfIframeRef}
-                                        src="/credit_report_placeholder.pdf#title=Credit%20Report"
+                                        src="/Credit Report.pdf"
                                         className="min-h-0 flex-1 w-full rounded-xl"
                                         style={{ colorScheme: "light" }}
                                         title="Credit Report"
@@ -2183,8 +2183,8 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             Print
                                         </button>
                                         <a
-                                            href="/credit_report_placeholder.pdf"
-                                            download="credit_report_placeholder.pdf"
+                                            href="/Credit Report.pdf"
+                                            download="Credit Report.pdf"
                                             className="flex items-center gap-1.5 rounded-lg border border-primary bg-primary px-3.5 py-2 text-sm font-semibold text-secondary shadow-xs transition hover:bg-primary_hover"
                                         >
                                             <Download01 className="size-4 text-fg-quaternary" />
@@ -2195,7 +2195,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                             </div>
                         )}
                         {tab === "documents" && (() => {
-                            const UPLOAD_PLACEHOLDER_PDF = "/bank_statement_placeholder.pdf";
+                            const UPLOAD_PLACEHOLDER_PDF = "/Bank Statement.pdf";
                             const fmtUploadTime = (d: Date) => {
                                 const secs = Math.floor((Date.now() - d.getTime()) / 1000);
                                 if (secs < 60) return "just now";
@@ -2206,8 +2206,8 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 return `${Math.floor(hrs / 24)}d`;
                             };
                             const staticDocs = [
-                                { label: "Accounts", filename: `${lead.company} — Accounts.pdf`, src: "/accounts_full_placeholder.pdf", timestamp: lead.timeAgo },
-                                { label: "Bank Statement", filename: `${lead.company} — Bank Statement.pdf`, src: "/bank_statement_placeholder.pdf", timestamp: lead.timeAgo },
+                                { label: "Accounts", filename: `${lead.company} — Accounts.pdf`, src: "/Accounts.pdf", timestamp: lead.timeAgo },
+                                { label: "Bank Statement", filename: `${lead.company} — Bank Statement.pdf`, src: "/Bank Statement.pdf", timestamp: lead.timeAgo },
                             ];
                             const uploadedDocs = [...documents].map((d, i) => ({ label: d.name, filename: d.name, src: UPLOAD_PLACEHOLDER_PDF, originalIndex: i, timestamp: fmtUploadTime(d.uploadedAt) })).reverse();
                             const DocCard = ({ label, filename, src, timestamp, onDelete, isActive, onActivate }: { label: string; filename: string; src: string; timestamp: string; onDelete?: () => void; isActive?: boolean; onActivate?: () => void }) => (
@@ -2225,7 +2225,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     <div data-pdf-key={label} className="flex flex-col rounded-xl border border-secondary bg-primary" style={{ height: 480 }}>
                                         <div className="relative min-h-0 flex-1">
                                             <iframe
-                                                src={`${src}#title=${encodeURIComponent(label)}`}
+                                                src={src}
                                                 className="h-full w-full rounded-t-xl"
                                                 style={{ colorScheme: "light" }}
                                                 title={label}
