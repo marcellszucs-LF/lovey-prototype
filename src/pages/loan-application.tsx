@@ -3174,6 +3174,16 @@ export const LoanApplication = () => {
                                                                     type="text"
                                                                     value={companyNumber}
                                                                     onChange={(value) => setCompanyNumber(value.replace(/\D/g, ""))}
+                                                                    hint={
+                                                                        <a
+                                                                            href="https://find-and-update.company-information.service.gov.uk/"
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="underline text-tertiary hover:text-secondary"
+                                                                        >
+                                                                            Find your company number here
+                                                                        </a>
+                                                                    }
                                                                 />
                                                             )}
                                                         </>
