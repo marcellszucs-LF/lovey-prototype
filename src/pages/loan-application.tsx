@@ -6,6 +6,7 @@ import type { DateValue } from "react-aria-components";
 import { DateField } from "@/components/application/date-picker/date-field";
 import { MonthYearField } from "@/components/application/date-picker/month-year-field";
 import { Button } from "@/components/base/buttons/button";
+import { BadgeWithIcon } from "@/components/base/badges/badges";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/base/input/input";
 import { Select } from "@/components/base/select/select";
@@ -3340,7 +3341,7 @@ export const LoanApplication = () => {
                                     </div>
 
                                     {/* Submit button - outside card */}
-                                    <div className="pt-2 md:pt-6 md:px-4 md:pb-4">
+                                    <div className="pt-2 md:pt-6 md:px-4 md:pb-4 flex flex-col items-center gap-3">
                                         {isLoading ? (
                                             <Skeleton className="h-12 w-full rounded-lg" />
                                         ) : (
@@ -3355,6 +3356,9 @@ export const LoanApplication = () => {
                                                 Get Started
                                             </Button>
                                         )}
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                            Getting a quote will not affect your credit score
+                                        </BadgeWithIcon>
                                     </div>
                                 </div>
                             )}
@@ -3442,7 +3446,7 @@ export const LoanApplication = () => {
                                     </div>
 
                                     {/* Navigation buttons - outside card */}
-                                    <div className="pt-2 md:pt-6 md:px-4 md:pb-4">
+                                    <div className="pt-2 md:pt-6 md:px-4 md:pb-4 flex flex-col items-center gap-3">
                                         <div className="flex gap-3 w-full">
                                             <button
                                                 type="button"
@@ -3462,6 +3466,9 @@ export const LoanApplication = () => {
                                                 Continue
                                             </Button>
                                         </div>
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                            Getting a quote will not affect your credit score
+                                        </BadgeWithIcon>
                                     </div>
                                 </div>
                             )}
@@ -3560,9 +3567,9 @@ export const LoanApplication = () => {
                                                 See if I'm eligible
                                             </Button>
                                         </div>
-                                        <p className="text-quaternary text-sm text-center">
-                                            This will not affect your credit score
-                                        </p>
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                            Getting a quote will not affect your credit score
+                                        </BadgeWithIcon>
                                     </div>
                                 </div>
                             )}
