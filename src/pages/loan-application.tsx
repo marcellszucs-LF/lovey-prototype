@@ -3393,7 +3393,7 @@ export const LoanApplication = () => {
                                         {isLoading ? (
                                             <>
                                                 <Skeleton className="h-12 w-full rounded-lg" />
-                                                <Skeleton className="h-6 w-64 rounded-full md:hidden" />
+                                                <Skeleton className="h-6 w-64 rounded-full" />
                                             </>
                                         ) : (
                                             <>
@@ -3407,7 +3407,7 @@ export const LoanApplication = () => {
                                                 >
                                                     Get Started
                                                 </Button>
-                                                <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle} className="md:hidden">
+                                                <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
                                                     Getting a quote will not affect your credit score
                                                 </BadgeWithIcon>
                                             </>
@@ -3519,7 +3519,7 @@ export const LoanApplication = () => {
                                                 Continue
                                             </Button>
                                         </div>
-                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle} className="md:hidden">
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
                                             Getting a quote will not affect your credit score
                                         </BadgeWithIcon>
                                     </div>
@@ -3620,7 +3620,7 @@ export const LoanApplication = () => {
                                                 See if I'm eligible
                                             </Button>
                                         </div>
-                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle} className="md:hidden">
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
                                             Getting a quote will not affect your credit score
                                         </BadgeWithIcon>
                                     </div>
@@ -3692,7 +3692,7 @@ export const LoanApplication = () => {
                                         >
                                             Add more details
                                         </Button>
-                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle} className="md:hidden">
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
                                             Creating an account will not affect your credit score
                                         </BadgeWithIcon>
                                     </div>
@@ -3714,16 +3714,6 @@ export const LoanApplication = () => {
                     </div>
                 )}
 
-                {/* Desktop fixed badge - bottom of viewport */}
-                {!showDashboardLoading && !showDashboard && (
-                    <div className="hidden md:flex fixed bottom-6 inset-x-0 justify-center z-20 pointer-events-none">
-                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
-                            {displayedStep === 4
-                                ? "Creating an account will not affect your credit score"
-                                : "Getting a quote will not affect your credit score"}
-                        </BadgeWithIcon>
-                    </div>
-                )}
 
                 {/* Dashboard loading screen */}
                 {showDashboardLoading && (
