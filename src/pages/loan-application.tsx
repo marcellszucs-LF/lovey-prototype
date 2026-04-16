@@ -3628,15 +3628,20 @@ export const LoanApplication = () => {
                                     </div>
 
                                     {/* Add more details button */}
-                                    <Button
-                                        color="primary"
-                                        size="lg"
-                                        iconTrailing={ArrowRight}
-                                        className="w-full"
-                                        onClick={handleAddMoreDetails}
-                                    >
-                                        Add more details
-                                    </Button>
+                                    <div className="flex flex-col items-center gap-6">
+                                        <Button
+                                            color="primary"
+                                            size="lg"
+                                            iconTrailing={ArrowRight}
+                                            className="w-full"
+                                            onClick={handleAddMoreDetails}
+                                        >
+                                            Add more details
+                                        </Button>
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                            Creating an account will not affect your credit score
+                                        </BadgeWithIcon>
+                                    </div>
                                 </div>
                             )}
                                 </div>
