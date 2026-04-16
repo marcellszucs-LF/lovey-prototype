@@ -579,7 +579,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
     const stepConfig = stepConfigs[dashStep] ?? stepConfigs[1];
 
     // Welcome banner state
-    const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
+    const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
     const [welcomeBannerVisible, setWelcomeBannerVisible] = useState(true);
 
     // Video modal state
