@@ -3393,7 +3393,7 @@ export const LoanApplication = () => {
                                         {isLoading ? (
                                             <>
                                                 <Skeleton className="h-12 w-full rounded-lg" />
-                                                <Skeleton className="h-6 w-64 rounded-full" />
+                                                <Skeleton className="h-6 w-64 rounded-full md:hidden" />
                                             </>
                                         ) : (
                                             <>
@@ -3407,7 +3407,7 @@ export const LoanApplication = () => {
                                                 >
                                                     Get Started
                                                 </Button>
-                                                <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                                <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle} className="md:hidden">
                                                     Getting a quote will not affect your credit score
                                                 </BadgeWithIcon>
                                             </>
@@ -3519,7 +3519,7 @@ export const LoanApplication = () => {
                                                 Continue
                                             </Button>
                                         </div>
-                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle} className="md:hidden">
                                             Getting a quote will not affect your credit score
                                         </BadgeWithIcon>
                                     </div>
@@ -3620,7 +3620,7 @@ export const LoanApplication = () => {
                                                 See if I'm eligible
                                             </Button>
                                         </div>
-                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle} className="md:hidden">
                                             Getting a quote will not affect your credit score
                                         </BadgeWithIcon>
                                     </div>
@@ -3692,7 +3692,7 @@ export const LoanApplication = () => {
                                         >
                                             Add more details
                                         </Button>
-                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle} className="md:hidden">
                                             Creating an account will not affect your credit score
                                         </BadgeWithIcon>
                                     </div>
@@ -3700,6 +3700,14 @@ export const LoanApplication = () => {
                             )}
                                 </div>
                             </div>
+                        {/* Desktop badge - outside white card, below it */}
+                        <div className="hidden md:flex justify-center pt-6">
+                            <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                {displayedStep === 4
+                                    ? "Creating an account will not affect your credit score"
+                                    : "Getting a quote will not affect your credit score"}
+                            </BadgeWithIcon>
+                        </div>
                         </div>
                         )}
                     </div>
