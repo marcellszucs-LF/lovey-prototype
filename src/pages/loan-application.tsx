@@ -1411,9 +1411,9 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                 </div>
                                 {/* Card body - Trading address lookup */}
                                 <div className="p-4">
-                                    <div className="flex flex-col gap-1.5 w-full md:w-1/2">
-                                        {/* Label row with toggle */}
-                                        <div className="flex items-center justify-between">
+                                    <div className="flex flex-col gap-1.5 w-full">
+                                        {/* Label row with toggle - constrained to half width so toggle stays in place */}
+                                        <div className="flex items-center justify-between md:w-1/2">
                                             <label className="text-sm font-medium text-secondary">Trading address</label>
                                             <button
                                                 type="button"
@@ -1464,7 +1464,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             </div>
                                         ) : (
                                             /* Address search combobox */
-                                            <div ref={tradingAddressInputRef} className="relative w-full">
+                                            <div ref={tradingAddressInputRef} className="relative w-full md:w-1/2">
                                                 <Input
                                                     placeholder="Start typing to search"
                                                     icon={SearchMd}
