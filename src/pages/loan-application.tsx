@@ -3343,22 +3343,27 @@ export const LoanApplication = () => {
                                     {/* Submit button - outside card */}
                                     <div className="pt-2 md:pt-6 md:px-4 md:pb-4 flex flex-col items-center gap-3">
                                         {isLoading ? (
-                                            <Skeleton className="h-12 w-full rounded-lg" />
+                                            <>
+                                                <Skeleton className="h-12 w-full rounded-lg" />
+                                                <Skeleton className="h-6 w-64 rounded-full" />
+                                            </>
                                         ) : (
-                                            <Button
-                                                color="primary"
-                                                size="lg"
-                                                iconTrailing={ArrowRight}
-                                                isDisabled={!isStep1Valid}
-                                                className="w-full"
-                                                onClick={handleNextStep}
-                                            >
-                                                Get Started
-                                            </Button>
+                                            <>
+                                                <Button
+                                                    color="primary"
+                                                    size="lg"
+                                                    iconTrailing={ArrowRight}
+                                                    isDisabled={!isStep1Valid}
+                                                    className="w-full"
+                                                    onClick={handleNextStep}
+                                                >
+                                                    Get Started
+                                                </Button>
+                                                <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
+                                                    Getting a quote will not affect your credit score
+                                                </BadgeWithIcon>
+                                            </>
                                         )}
-                                        <BadgeWithIcon type="pill-color" color="brand" iconLeading={InfoCircle}>
-                                            Getting a quote will not affect your credit score
-                                        </BadgeWithIcon>
                                     </div>
                                 </div>
                             )}
