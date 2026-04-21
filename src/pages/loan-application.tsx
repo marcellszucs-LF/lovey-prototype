@@ -125,30 +125,12 @@ const tradingStyleOptions = [
     { id: "sole-trader", label: "Sole Trader" },
 ];
 
-const tradingDurationOptions = [
-    { id: "3-12", label: "3\u201312 months" },
-    { id: "12-24", label: "12\u201324 months" },
-    { id: "24-36", label: "24\u201336 months" },
-    { id: "36-48", label: "36\u201348 months" },
-    { id: "48-60", label: "48\u201360 months" },
-];
-
 const yearlyTurnoverOptions = [
     { id: "under-50k", label: "Under £50k" },
     { id: "50k-100k", label: "Between £50k and £100k" },
     { id: "100k-500k", label: "Between £100k and £500k" },
     { id: "over-500k", label: "Over £500k" },
 ];
-
-const fundsReasonOptions = [
-    { id: "working-capital", label: "Working capital" },
-    { id: "equipment", label: "Equipment purchase" },
-    { id: "expansion", label: "Business expansion" },
-    { id: "stock", label: "Stock purchase" },
-    { id: "marketing", label: "Marketing" },
-    { id: "other", label: "Other" },
-];
-
 
 const businessTradingDurationOptions = [
     { id: "under-3m", label: "Under 3 months" },
@@ -2567,10 +2549,8 @@ export const LoanApplication = () => {
     const [phoneError, setPhoneError] = useState(false);
     const [ownsHouse, setOwnsHouse] = useState<boolean | null>(null);
 
-    // Step 3: About Your Company form fields
-    const [tradingDuration, setTradingDuration] = useState<string | null>(null);
+    // Step 2: About Your Company form fields
     const [yearlyTurnover, setYearlyTurnover] = useState<string | null>(null);
-    const [fundsReason, setFundsReason] = useState<string | null>(null);
     const [businessTradingDuration, setBusinessTradingDuration] = useState<string | null>(null);
     const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
 
