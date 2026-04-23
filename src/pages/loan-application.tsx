@@ -367,7 +367,7 @@ const UploadDocumentsContent = ({
                                             : <Loading01 className="size-8 text-fg-secondary shrink-0 animate-spin" />
                                         }
                                         <div className="flex flex-col gap-1 flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-secondary truncate">{file.name}</p>
+                                            <p className="text-base font-medium text-secondary truncate">{file.name}</p>
                                             <p className="text-sm text-tertiary">{file.size}</p>
                                         </div>
                                     </div>
@@ -408,7 +408,7 @@ const UploadDocumentsContent = ({
                                             : <Loading01 className="size-8 text-fg-secondary shrink-0 animate-spin" />
                                         }
                                         <div className="flex flex-col gap-1 flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-secondary truncate">{file.name}</p>
+                                            <p className="text-base font-medium text-secondary truncate">{file.name}</p>
                                             <p className="text-sm text-tertiary">{file.size}</p>
                                         </div>
                                     </div>
@@ -1396,7 +1396,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                     <div className="flex flex-col gap-1.5 w-full">
                                         {/* Label row with toggle - constrained to half width so toggle stays in place */}
                                         <div className="flex items-center justify-between md:w-1/2">
-                                            <label className="text-sm font-medium text-secondary">Trading address</label>
+                                            <label className="text-base font-medium text-secondary">Trading address</label>
                                             <button
                                                 type="button"
                                                 onClick={() => {
@@ -3151,7 +3151,7 @@ export const LoanApplication = () => {
                                                 <>
                                                     {/* Borrow amount input with £ prefix */}
                                                     <div className="flex flex-col gap-1.5 w-full">
-                                                        <label className="text-sm font-medium text-secondary">
+                                                        <label className="text-base font-medium text-secondary">
                                                             How much would you like to borrow?
                                                         </label>
                                                         <div className={`flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset overflow-hidden ${borrowAmountError ? "ring-error_subtle" : "ring-primary"} focus-within:ring-2 focus-within:ring-brand ${borrowAmountError ? "focus-within:ring-error" : ""}`}>
@@ -3226,7 +3226,7 @@ export const LoanApplication = () => {
                                                         </>
                                                     ) : (
                                                     <div ref={companyInputRef} className="flex flex-col gap-1.5 w-full">
-                                                        <label id="company-search-label" className="text-sm font-medium text-secondary">
+                                                        <label id="company-search-label" className="text-base font-medium text-secondary">
                                                             What is your company's name?
                                                         </label>
                                                         <div className="relative w-full">
@@ -3493,7 +3493,7 @@ export const LoanApplication = () => {
                                         <div className="flex flex-col gap-5 w-full">
                                             {/* Name fields - side by side */}
                                             <div className="flex flex-col gap-1.5 w-full">
-                                                <label className="text-sm font-medium text-secondary">
+                                                <label className="text-base font-medium text-secondary">
                                                     What is your name?
                                                 </label>
                                                 <div className="flex gap-1.5 w-full">
@@ -3512,7 +3512,7 @@ export const LoanApplication = () => {
 
                                             {/* Phone number with +44 prefix */}
                                             <div className="flex flex-col gap-1.5 w-full">
-                                                <label className="text-sm font-medium text-secondary">
+                                                <label className="text-base font-medium text-secondary">
                                                     What is your phone number?
                                                 </label>
                                                 <div className={`flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset overflow-hidden ${phoneError ? "ring-error_subtle" : "ring-primary"}`}>
@@ -3536,7 +3536,7 @@ export const LoanApplication = () => {
 
                                             {/* House ownership - Yes/No button group */}
                                             <div className="flex flex-col gap-1.5 w-full">
-                                                <label className="text-sm font-medium text-secondary">
+                                                <label className="text-base font-medium text-secondary">
                                                     Do any of the directors own a house in the UK?
                                                 </label>
                                                 <div className="flex w-full border border-primary rounded-lg shadow-xs-skeumorphic overflow-hidden h-10">
