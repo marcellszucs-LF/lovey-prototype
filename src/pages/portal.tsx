@@ -17,10 +17,13 @@ import {
     File02,
     FileHeart01,
     FilePlus01,
+    Folder,
     Home05,
     Mail01,
+    Share05,
     PieChart02,
     RefreshCcw01,
+    RefreshCcw03,
     Rows03,
     Target04,
     Trophy01,
@@ -64,6 +67,7 @@ import { DateField } from "@/components/application/date-picker/date-field";
 import { Input } from "@/components/base/input/input";
 import { ProgressBarBase } from "@/components/base/progress-indicators/progress-indicators";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
+import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { cx } from "@/utils/cx";
 import { NotFound } from "@/pages/not-found";
 import { NoAccess } from "@/pages/no-access";
@@ -175,7 +179,7 @@ const navSections: SidebarNavSection[] = [
         heading: "Account Managers",
         items: [
             { label: "Leads", href: "/portal/leads", icon: FilePlus01, badge: 2 },
-            { label: "Tasks", href: "#", icon: CheckDone01, disabled: true },
+            { label: "Tasks", href: "/portal/tasks", icon: CheckDone01 },
             { label: "Deals", href: "#", icon: FileHeart01, disabled: true },
         ],
     },
@@ -222,7 +226,7 @@ const SidebarItem = ({
     const isActive =
         !item.disabled &&
         item.href !== "#" &&
-        (activeUrl === item.href || activeUrl.startsWith(item.href + "/"));
+        (activeUrl === item.href || (item.href !== "/portal" && activeUrl.startsWith(item.href + "/")));
 
     if (expanded) {
         return (
@@ -822,13 +826,21 @@ const DateRangeFilter = ({ value, label: labelOverride, onChange }: {
     };
 
     const displayLabel = labelOverride || (value ? `${fmtDateShort(value.start)} – ${fmtDateShort(value.end)}` : "Date range");
+    const isActive = value !== null;
 
     return (
         <div ref={wrapperRef} className="relative">
             <button
                 type="button"
                 onClick={() => { setDraft(value); setAnchor(null); setOpen(o => !o); }}
-                className={cx("relative inline-flex cursor-pointer items-center rounded-lg border border-primary py-2.5 pl-3.5 pr-8 text-sm font-semibold text-secondary transition duration-100 hover:bg-primary_hover hover:text-secondary_hover focus:outline-none", open ? "bg-active" : "bg-primary")}
+                className={cx(
+                    "relative inline-flex cursor-pointer items-center rounded-lg border py-2.5 pl-3.5 pr-8 text-sm font-semibold transition duration-100 focus:outline-none",
+                    open
+                        ? "border-primary bg-active text-secondary"
+                        : isActive
+                        ? "border-brand-600 bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover"
+                        : "border-primary bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover",
+                )}
             >
                 {displayLabel}
                 <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-quaternary" />
@@ -993,6 +1005,8 @@ const AmountRangeFilter = ({ value, onChange }: { value: AmountRange | null; onC
         setOpen(false);
     };
 
+    const isActive = value !== null;
+
     return (
         <div ref={wrapperRef} className="relative">
             <button
@@ -1002,7 +1016,14 @@ const AmountRangeFilter = ({ value, onChange }: { value: AmountRange | null; onC
                     setMaxVal(value?.max ? String(value.max) : "");
                     setOpen(o => !o);
                 }}
-                className={cx("relative inline-flex cursor-pointer items-center rounded-lg border border-primary py-2.5 pl-3.5 pr-8 text-sm font-semibold text-secondary transition duration-100 hover:bg-primary_hover hover:text-secondary_hover focus:outline-none", open ? "bg-active" : "bg-primary")}
+                className={cx(
+                    "relative inline-flex cursor-pointer items-center rounded-lg border py-2.5 pl-3.5 pr-8 text-sm font-semibold transition duration-100 focus:outline-none",
+                    open
+                        ? "border-primary bg-active text-secondary"
+                        : isActive
+                        ? "border-brand-600 bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover"
+                        : "border-primary bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover",
+                )}
             >
                 {label}
                 <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-quaternary" />
@@ -1098,12 +1119,21 @@ const AssigneeFilter = ({ value, onChange }: { value: string[]; onChange: (v: st
     }));
     const filtered = allEntries.filter(a => a.display.toLowerCase().includes(search.toLowerCase()));
 
+    const isActive = value.length > 0;
+
     return (
         <div ref={wrapperRef} className="relative">
             <button
                 type="button"
                 onClick={() => setOpen(o => !o)}
-                className={cx("relative inline-flex cursor-pointer items-center rounded-lg border border-primary py-2.5 pl-3.5 pr-8 text-sm font-semibold text-secondary transition duration-100 hover:bg-primary_hover hover:text-secondary_hover focus:outline-none", open ? "bg-active" : "bg-primary")}
+                className={cx(
+                    "relative inline-flex cursor-pointer items-center rounded-lg border py-2.5 pl-3.5 pr-8 text-sm font-semibold transition duration-100 focus:outline-none",
+                    open
+                        ? "border-primary bg-active text-secondary"
+                        : isActive
+                        ? "border-brand-600 bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover"
+                        : "border-primary bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover",
+                )}
             >
                 {label}
                 <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-quaternary" />
@@ -1174,13 +1204,21 @@ const PurposeFilter = ({ value, onChange }: { value: string[]; onChange: (v: str
 
     const label = value.length === 0 ? "All purposes" : value.length === 1 ? value[0] : `${value.length} purposes`;
     const options = PURPOSE_OPTIONS.slice(1);
+    const isActive = value.length > 0;
 
     return (
         <div ref={wrapperRef} className="relative">
             <button
                 type="button"
                 onClick={() => setOpen(o => !o)}
-                className={cx("relative inline-flex cursor-pointer items-center rounded-lg border border-primary py-2.5 pl-3.5 pr-8 text-sm font-semibold text-secondary transition duration-100 hover:bg-primary_hover hover:text-secondary_hover focus:outline-none", open ? "bg-active" : "bg-primary")}
+                className={cx(
+                    "relative inline-flex cursor-pointer items-center rounded-lg border py-2.5 pl-3.5 pr-8 text-sm font-semibold transition duration-100 focus:outline-none",
+                    open
+                        ? "border-primary bg-active text-secondary"
+                        : isActive
+                        ? "border-brand-600 bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover"
+                        : "border-primary bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover",
+                )}
             >
                 {label}
                 <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-quaternary" />
@@ -1309,22 +1347,19 @@ const ApplicationHeader = ({
                     <AssigneeFilter value={filters.assignees} onChange={filters.setAssignees} />
                 </div>
 
-                {/* Reset filters button — only visible when filters are active */}
-                {filters.activeCount > 0 && (
-                    <div className="relative">
-                        <button
-                            type="button"
-                            onClick={filters.onReset}
-                            className="flex cursor-pointer items-center justify-center rounded-lg border border-primary bg-primary p-2.5 transition duration-100 hover:bg-primary_hover"
-                            title="Reset filters"
-                        >
-                            <ClearFiltersIcon className="size-5 text-fg-quaternary" />
-                        </button>
-                        <span className="pointer-events-none absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white">
-                            {filters.activeCount}
-                        </span>
-                    </div>
-                )}
+                <div className={cx("relative", filters.activeCount === 0 && "invisible pointer-events-none")}>
+                    <button
+                        type="button"
+                        onClick={filters.onReset}
+                        className="flex cursor-pointer items-center justify-center rounded-lg border border-primary bg-primary p-2.5 transition duration-100 hover:bg-primary_hover"
+                        title="Reset filters"
+                    >
+                        <ClearFiltersIcon className="size-5 text-fg-quaternary" />
+                    </button>
+                    <span className="pointer-events-none absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white">
+                        {filters.activeCount}
+                    </span>
+                </div>
             </div>
         </div>
     </div>
@@ -2660,6 +2695,7 @@ const LeadsSimpleFilter = ({
     }, [open]);
 
     const display = value === options[0] ? label : value;
+    const isActive = value !== options[0];
 
     return (
         <div ref={ref} className="relative">
@@ -2667,8 +2703,12 @@ const LeadsSimpleFilter = ({
                 type="button"
                 onClick={() => setOpen(o => !o)}
                 className={cx(
-                    "relative inline-flex cursor-pointer items-center gap-1 rounded-lg border border-primary py-2 pl-3 pr-8 text-sm font-semibold text-secondary transition duration-100 hover:bg-primary_hover focus:outline-none",
-                    open ? "bg-active" : "bg-primary",
+                    "relative inline-flex cursor-pointer items-center gap-1 rounded-lg border py-2 pl-3 pr-8 text-sm font-semibold transition duration-100 focus:outline-none",
+                    open
+                        ? "border-primary bg-active text-secondary"
+                        : isActive
+                        ? "border-brand-600 bg-primary text-secondary hover:bg-primary_hover hover:text-secondary_hover"
+                        : "border-primary bg-primary text-secondary hover:bg-primary_hover",
                 )}
             >
                 {display}
@@ -3574,6 +3614,8 @@ const LeadOverlay = ({
     onNext,
     initialTasks = [],
     onTasksChange,
+    hideNewTask = false,
+    relatedTaskRows = [],
 }: {
     lead: LeadRow;
     leadIndex: number;
@@ -3584,6 +3626,8 @@ const LeadOverlay = ({
     onNext: () => void;
     initialTasks?: OverlayTask[];
     onTasksChange?: (tasks: OverlayTask[]) => void;
+    hideNewTask?: boolean;
+    relatedTaskRows?: TaskRow[];
 }) => {
     const [activeTab, setActiveTab] = useState<OverlayTab>("contact");
     const [noteText, setNoteText] = useState("");
@@ -3591,6 +3635,16 @@ const LeadOverlay = ({
     const activityScrollRef = useRef<HTMLDivElement>(null);
     const [taskDesc, setTaskDesc] = useState("");
     const [tasks, setTasks] = useState<OverlayTask[]>(initialTasks);
+    const [relatedTasks, setRelatedTasks] = useState<OverlayTask[]>(() =>
+        relatedTaskRows.map((t, i) => ({
+            id: -(i + 1),
+            desc: t.task,
+            priority: t.priority,
+            due: t.due,
+            assignee: t.assignee,
+            completed: false,
+        })),
+    );
     const nextTaskId = useRef(initialTasks.length > 0 ? Math.max(...initialTasks.map(t => t.id)) + 1 : 0);
 
     const updateTasks = (next: OverlayTask[]) => {
@@ -3793,7 +3847,7 @@ const LeadOverlay = ({
                         {/* Left panel */}
                         <div className="flex flex-1 flex-col overflow-y-auto min-w-0">
                             {/* New task */}
-                            <div className="shrink-0 p-3">
+                            {!hideNewTask && <div className="shrink-0 p-3">
                                 <div className="flex flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
                                     <div className="px-5 pt-3 pb-2">
                                         <p className="text-sm font-semibold text-primary">New task</p>
@@ -4008,7 +4062,88 @@ const LeadOverlay = ({
                                         ))}
                                     </div>
                                 )}
-                            </div>
+                            </div>}
+
+                            {/* Tasks view — related tasks + lead summary */}
+                            {hideNewTask && (
+                                <div className="shrink-0 flex flex-col gap-3 p-3 pb-0">
+                                    {/* Related tasks */}
+                                    {relatedTasks.length > 0 && (
+                                        <div className="flex flex-col gap-2">
+                                            <p className="px-2 text-sm font-semibold text-primary">Tasks</p>
+                                            <div className="flex flex-col gap-2">
+                                                {relatedTasks.map(task => (
+                                                    <AnimatedTaskCard
+                                                        key={task.id}
+                                                        task={task}
+                                                        onComplete={() => setRelatedTasks(ts => ts.map(t => t.id === task.id ? { ...t, completed: true } : t))}
+                                                        onRemove={() => setRelatedTasks(ts => ts.filter(t => t.id !== task.id))}
+                                                        onUpdate={updates => setRelatedTasks(ts => ts.map(t => t.id === task.id ? { ...t, ...updates } : t))}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Lead quick summary */}
+                                    <div className="flex flex-col gap-0.5 rounded-xl bg-secondary_subtle shadow-xs">
+                                        <div className="rounded-xl border border-secondary bg-primary px-5 pt-5 pb-6 shadow-xs">
+                                            <div className="flex flex-wrap gap-x-3 gap-y-4 px-1">
+                                                <div className="flex min-w-0 basis-[calc(50%-6px)] flex-col gap-0.5">
+                                                    <span className="text-sm text-tertiary">Contact name</span>
+                                                    <span className="text-md font-semibold text-secondary truncate">{lead.name}</span>
+                                                </div>
+                                                <div className="flex min-w-0 basis-[calc(50%-6px)] flex-col gap-0.5">
+                                                    <span className="text-sm text-tertiary">Company name</span>
+                                                    <span className="text-md font-semibold text-secondary truncate">{lead.company || "—"}</span>
+                                                </div>
+                                                <div className="flex min-w-0 basis-[calc(50%-6px)] flex-col gap-0.5">
+                                                    <span className="text-sm text-tertiary">Last call</span>
+                                                    <span className="text-md font-semibold text-secondary truncate">{lead.callStatus || "—"}</span>
+                                                </div>
+                                                <div className="flex min-w-0 basis-[calc(50%-6px)] flex-col gap-0.5">
+                                                    <span className="text-sm text-tertiary">Assignee</span>
+                                                    <span className="text-md font-semibold text-secondary truncate">{lead.assignee || "—"}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-end gap-3 px-4 py-2">
+                                            <a
+                                                href="https://hubspot.com"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                title="Open in HubSpot"
+                                                className="flex cursor-pointer items-center justify-center rounded-md border border-secondary bg-primary p-2 shadow-xs transition hover:bg-primary_hover"
+                                            >
+                                                <Share05 className="size-4 text-fg-quaternary" />
+                                            </a>
+                                            <a
+                                                href="https://onedrive.com"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                title="Go to folder"
+                                                className="flex cursor-pointer items-center justify-center rounded-md border border-secondary bg-primary p-2 shadow-xs transition hover:bg-primary_hover"
+                                            >
+                                                <Folder className="size-4 text-fg-quaternary" />
+                                            </a>
+                                            <a
+                                                href={`mailto:${lead.name.toLowerCase().replace(/\s+/g, ".")}@example.com`}
+                                                title="Send email"
+                                                className="flex cursor-pointer items-center justify-center rounded-md border border-secondary bg-primary p-2 shadow-xs transition hover:bg-primary_hover"
+                                            >
+                                                <Mail05 className="size-4 text-fg-quaternary" />
+                                            </a>
+                                            <a
+                                                href={`tel:${lead.phone}`}
+                                                title="Call"
+                                                className="flex cursor-pointer items-center justify-center rounded-md border border-secondary bg-primary p-2 shadow-xs transition hover:bg-primary_hover"
+                                            >
+                                                <PhoneCall01 className="size-4 text-fg-quaternary" />
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Tabs */}
                             <div className="relative shrink-0 flex border-b border-secondary px-5 pt-4">
@@ -4735,21 +4870,19 @@ const LeadsPage = ({ isRefreshing, onLeadTasksChange }: { isRefreshing: boolean;
                                     <LeadsSimpleFilter label="Any turnover"       options={["Any turnover", "Under £100k", "£100k–£500k", "£500k–£1M", "£1M+"]} value={turnover}  onChange={setTurnover}  />
                                     <LeadsSimpleFilter label="All assignees"      options={["All assignees", "Alex Buck", "Sarah Chen", "Jake Torres"]}        value={assignee}  onChange={setAssignee}  />
                                 </div>
-                                {activeFilterCount > 0 && (
-                                    <div className="relative">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setHomeowner("Homeowner: any"); setBizType("All Business Types"); setTurnover("Any turnover"); setAssignee("All assignees"); }}
-                                            className="flex cursor-pointer items-center justify-center rounded-md border border-secondary bg-primary p-2.5 shadow-xs transition-colors duration-100 hover:bg-secondary_subtle"
-                                            title="Reset filters"
-                                        >
-                                            <XClose className="size-5 text-secondary" />
-                                        </button>
-                                        <span className="pointer-events-none absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white">
-                                            {activeFilterCount}
-                                        </span>
-                                    </div>
-                                )}
+                                <div className={cx("relative", activeFilterCount === 0 && "invisible pointer-events-none")}>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setHomeowner("Homeowner: any"); setBizType("All Business Types"); setTurnover("Any turnover"); setAssignee("All assignees"); }}
+                                        className="flex cursor-pointer items-center justify-center rounded-lg border border-primary bg-primary p-2.5 transition duration-100 hover:bg-primary_hover"
+                                        title="Reset filters"
+                                    >
+                                        <ClearFiltersIcon className="size-5 text-fg-quaternary" />
+                                    </button>
+                                    <span className="pointer-events-none absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white">
+                                        {activeFilterCount}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -4886,6 +5019,479 @@ const LeadsPage = ({ isRefreshing, onLeadTasksChange }: { isRefreshing: boolean;
                 onPrev={() => openLeadIdx > 0 && setOpenLeadId(sorted[openLeadIdx - 1].id)}
                 onNext={() => openLeadIdx < sorted.length - 1 && setOpenLeadId(sorted[openLeadIdx + 1].id)}
                 onLeadTasksChange={onLeadTasksChange}
+            />
+        )}
+        </>
+    );
+};
+
+// ─── Tasks Page ───────────────────────────────────────────────────────────────
+
+type TaskPriority = "High" | "Medium" | "Low";
+type TaskContactKind = "No call yet" | "Left Voicemail" | "Connected";
+
+interface TaskRow {
+    id: string;
+    task: string;
+    contactName: string;
+    company: string;
+    priority: TaskPriority;
+    due: string;
+    phone: string;
+    contactKind: TaskContactKind;
+    assignee: string;
+    playbookDone: boolean;
+}
+
+const TASKS_DATA: TaskRow[] = [
+    { id: "t1",  task: "Homeowner own book eligible cold call again",        contactName: "John Doe",       company: "Bigbidness LTD",         priority: "High",   due: "Yesterday",   phone: "07412 345678", contactKind: "No call yet",    assignee: "Alex Buck",   playbookDone: true  },
+    { id: "t2",  task: "Dashboard question",                                 contactName: "Laura Davis",    company: "Visionary Ventures",     priority: "Medium", due: "Today",       phone: "07723 179931", contactKind: "Left Voicemail", assignee: "Sarah Chen",  playbookDone: true  },
+    { id: "t3",  task: "Dashboard upload completed for",                     contactName: "Michael Smith",  company: "FutureTech Group",       priority: "Low",    due: "Today",       phone: "07987 654321", contactKind: "Connected",      assignee: "Alex Buck",   playbookDone: false },
+    { id: "t4",  task: "Re-submission",                                      contactName: "Emily Johnson",  company: "Innovate Solutions LLC", priority: "High",   due: "Yesterday",   phone: "07765 432109", contactKind: "No call yet",    assignee: "Jake Torres", playbookDone: false },
+    { id: "t5",  task: "Check back in with client (6 months passed)",        contactName: "Sarah Brown",    company: "Creative Minds Co.",     priority: "Medium", due: "30/05/2026",  phone: "07654 321987", contactKind: "Left Voicemail", assignee: "Sarah Chen",  playbookDone: false },
+    { id: "t6",  task: "Follow up on outstanding documents",                 contactName: "Alex Carter",    company: "TechSphere Inc.",        priority: "High",   due: "Yesterday",   phone: "07891 234567", contactKind: "Connected",      assignee: "Alex Buck",   playbookDone: true  },
+    { id: "t7",  task: "Send updated proposal",                              contactName: "David Wilson",   company: "NextGen Enterprises",    priority: "Low",    due: "Today",       phone: "07598 765432", contactKind: "No call yet",    assignee: "Jake Torres", playbookDone: true  },
+    { id: "t8",  task: "Confirm meeting for next week",                      contactName: "Hannah Clarke",  company: "Apex Solutions Ltd",     priority: "Medium", due: "02/06/2026",  phone: "07312 456789", contactKind: "Connected",      assignee: "Sarah Chen",  playbookDone: false },
+    { id: "t9",  task: "Chase bank statements",                              contactName: "Tom Fletcher",   company: "Horizon Capital",        priority: "High",   due: "Today",       phone: "07456 789123", contactKind: "Left Voicemail", assignee: "Alex Buck",   playbookDone: true  },
+    { id: "t10", task: "Review credit report and update CRM",                contactName: "Olivia Grant",   company: "Stellar Finance",        priority: "Low",    due: "05/06/2026",  phone: "07234 567890", contactKind: "No call yet",    assignee: "Jake Torres", playbookDone: false },
+    { id: "t11", task: "Initial eligibility check",                          contactName: "Marcus Webb",    company: "Webb & Partners",        priority: "Medium", due: "Today",       phone: "07567 890234", contactKind: "Connected",      assignee: "Sarah Chen",  playbookDone: true  },
+    { id: "t12", task: "Resend application link",                            contactName: "Priya Sharma",   company: "Sharma Retail Ltd",      priority: "Low",    due: "06/06/2026",  phone: "07678 901345", contactKind: "No call yet",    assignee: "Alex Buck",   playbookDone: false },
+];
+
+const TASKS_MOCK_OVERDUE   = TASKS_DATA.filter(t => t.due === "Yesterday").length;
+const TASKS_MOCK_DUE_TODAY = TASKS_DATA.filter(t => t.due === "Today").length;
+
+const TaskPriorityBadge = ({ priority }: { priority: TaskPriority }) => (
+    <BadgeWithDot
+        type="modern"
+        size="sm"
+        color={priority === "High" ? "error" : priority === "Medium" ? "warning" : "blue"}
+    >
+        {priority}
+    </BadgeWithDot>
+);
+
+const TaskContactKindBadge = ({ kind }: { kind: TaskContactKind }) => (
+    <BadgeWithDot
+        type="modern"
+        size="sm"
+        color={kind === "Connected" ? "success" : kind === "Left Voicemail" ? "gray-blue" : "gray"}
+    >
+        {kind}
+    </BadgeWithDot>
+);
+
+const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefreshing: boolean }) => {
+    const [search, setSearch]           = useState("");
+    const [assignee, setAssignee]       = useState("My team");
+    const [dueDate, setDueDate]         = useState("All due dates");
+    const [homeowner, setHomeowner]     = useState("Homeowner: any");
+    const [bizType, setBizType]         = useState("All business types");
+    const [playbook, setPlaybook]           = useState("Playbook: any");
+    const [callOutcome, setCallOutcome]     = useState("Call outcome: any");
+    const [convYear, setConvYear]           = useState("Conversion year: any");
+    const [completion, setCompletion]       = useState("Not Completed");
+    const [completedIds, setCompletedIds]     = useState<Set<string>>(new Set());
+    const [exitingIds, setExitingIds]         = useState<Set<string>>(new Set());
+    const [collapsingIds, setCollapsingIds]   = useState<Set<string>>(new Set());
+    const [openTaskId, setOpenTaskId]         = useState<string | null>(null);
+    const [isClosingTask, setIsClosingTask]   = useState(false);
+
+    const handleCloseTask = () => {
+        setIsClosingTask(true);
+        setTimeout(() => { setOpenTaskId(null); setIsClosingTask(false); }, 150);
+    };
+    const searchWrapperRef = useRef<HTMLDivElement>(null);
+
+    type TaskSortCol = "task" | "priority" | "due" | "contactKind" | "assignee";
+    const [sortCol, setSortCol] = useState<TaskSortCol>("due");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [page, setPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    const activeFilterCount = [
+        assignee    !== "My team",
+        dueDate     !== "All due dates",
+        homeowner   !== "Homeowner: any",
+        bizType     !== "All business types",
+        playbook    !== "Playbook: any",
+        callOutcome !== "Call outcome: any",
+        convYear    !== "Conversion year: any",
+        completion  !== "Not Completed",
+    ].filter(Boolean).length;
+
+    const resetFilters = () => {
+        setAssignee("My team");
+        setDueDate("All due dates");
+        setHomeowner("Homeowner: any");
+        setBizType("All business types");
+        setPlaybook("Playbook: any");
+        setCallOutcome("Call outcome: any");
+        setConvYear("Conversion year: any");
+        setCompletion("Not Completed");
+    };
+
+    const handleSort = (col: TaskSortCol) => {
+        if (col === sortCol) setSortDir(d => d === "asc" ? "desc" : "asc");
+        else { setSortCol(col); setSortDir("asc"); }
+        setPage(1);
+    };
+
+    const dueSortKey = (due: string) => {
+        if (due === "Yesterday") return -1;
+        if (due === "Today")     return 0;
+        const d = new Date(due.split("/").reverse().join("-"));
+        if (isNaN(d.getTime())) return 9999;
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        return Math.round((d.getTime() - today.getTime()) / 86400000);
+    };
+
+    const priorityOrder: Record<TaskPriority, number> = { High: 0, Medium: 1, Low: 2 };
+
+    const filtered = TASKS_DATA.filter(t => {
+        if (exitingIds.has(t.id) || collapsingIds.has(t.id)) return true;
+        if (search && !t.task.toLowerCase().includes(search.toLowerCase()) &&
+            !t.contactName.toLowerCase().includes(search.toLowerCase()) &&
+            !t.company.toLowerCase().includes(search.toLowerCase())) return false;
+        if (dueDate !== "All due dates") {
+            if (dueDate === "Today"     && t.due !== "Today")     return false;
+            if (dueDate === "Overdue"   && t.due !== "Yesterday")  return false;
+        }
+        if (playbook === "Yes" && !t.playbookDone) return false;
+        if (playbook === "No"  &&  t.playbookDone) return false;
+        if (callOutcome !== "Call outcome: any"     && t.contactKind !== callOutcome) return false;
+        if (assignee    !== "My team" && assignee !== "All assignees" && t.assignee !== assignee) return false;
+        if (completion === "Not Completed" &&  completedIds.has(t.id)) return false;
+        if (completion === "Completed"     && !completedIds.has(t.id)) return false;
+        return true;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+        let cmp = 0;
+        if (sortCol === "task")        cmp = a.task.localeCompare(b.task);
+        else if (sortCol === "priority")    cmp = priorityOrder[a.priority] - priorityOrder[b.priority];
+        else if (sortCol === "due")         cmp = dueSortKey(a.due) - dueSortKey(b.due);
+        else if (sortCol === "contactKind") cmp = a.contactKind.localeCompare(b.contactKind);
+        else if (sortCol === "assignee")    cmp = a.assignee.localeCompare(b.assignee);
+        return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(sorted.length / rowsPerPage));
+    const pageRows   = sorted.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+    const allPageSelected  = pageRows.length > 0 && pageRows.every(r => selected.has(r.id));
+    const somePageSelected = pageRows.some(r => selected.has(r.id)) && !allPageSelected;
+
+    const toggleAll = () => {
+        if (allPageSelected) setSelected(s => { const n = new Set(s); pageRows.forEach(r => n.delete(r.id)); return n; });
+        else setSelected(s => { const n = new Set(s); pageRows.forEach(r => n.add(r.id)); return n; });
+    };
+    const toggleRow = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+    const pages: (number | "…")[] = [];
+    if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
+    else {
+        pages.push(1, 2, 3);
+        if (page > 4) pages.push("…");
+        if (page > 3 && page < totalPages - 2) pages.push(page);
+        if (page < totalPages - 3) pages.push("…");
+        pages.push(totalPages - 1, totalPages);
+    }
+
+    const thCls = "h-11 cursor-pointer select-none border-b border-secondary px-4 py-3 text-left";
+    const SortIcon = ({ col }: { col: TaskSortCol }) =>
+        sortCol === col
+            ? (sortDir === "asc" ? <ArrowUp className="size-3 text-tertiary" /> : <ArrowDown className="size-3 text-tertiary" />)
+            : <ChevronSelectorVertical className="size-3 text-quaternary" />;
+
+    const tdOuter = (id: string) => cx(
+        "overflow-hidden bg-primary p-0 transition-colors duration-100 group-hover:bg-secondary_subtle",
+        !collapsingIds.has(id) && "border-b border-secondary",
+    );
+    const tdInner = (_id: string, extra?: string) => cx("flex items-center overflow-hidden px-4", extra);
+    const tdInnerStyle = (id: string): React.CSSProperties => ({
+        height: collapsingIds.has(id) ? 0 : 72,
+        transition: "height 200ms ease-in-out",
+    });
+
+    const openTask     = openTaskId ? TASKS_DATA.find(t => t.id === openTaskId) ?? null : null;
+    const openTaskIdx  = openTaskId ? sorted.findIndex(t => t.id === openTaskId) : -1;
+
+    const taskToLeadRow = (t: TaskRow): LeadRow => ({
+        id:           t.id,
+        name:         t.contactName,
+        company:      t.company,
+        applied:      t.due,
+        businessType: "Limited",
+        strength:     "Strong",
+        callStatus:   t.contactKind,
+        assignee:     t.assignee,
+        phone:        t.phone,
+    });
+
+    const selRows            = TASKS_DATA.filter(t => selected.has(t.id));
+    const priorities         = [...new Set(selRows.map(t => t.priority))];
+    const dates              = [...new Set(selRows.map(t => t.due))];
+    const assignees          = [...new Set(selRows.map(t => t.assignee))];
+    const priLabel           = priorities.length === 1 ? `${priorities[0]} priority` : "Various priorities";
+    const dateLabel          = dates.length === 1 ? dates[0] : "Various dates";
+    const assignLabel        = assignees.length === 1 ? assignees[0] : "Various assignees";
+    const allSelectedCompleted = selRows.length > 0 && selRows.every(t => completedIds.has(t.id));
+
+    return (
+        <>
+        <div className={cx("flex flex-1 flex-col overflow-x-auto overflow-y-auto transition-opacity duration-300", isRefreshing && "opacity-40 pointer-events-none")}>
+            <div className="flex min-w-[1100px] flex-col">
+                {/* Header */}
+                <div className="shrink-0 px-5 pt-5 pb-4">
+                    <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
+                        <div className="flex items-center gap-4 px-5 py-4">
+                            <h1 className="text-lg font-semibold text-primary">Tasks</h1>
+                            <Badge type="modern" color="gray" size="sm">{TASKS_MOCK_OVERDUE} overdue</Badge>
+                            <Badge type="modern" color="gray" size="sm">{TASKS_MOCK_DUE_TODAY} due today</Badge>
+                            <div ref={searchWrapperRef} className="ml-auto flex items-center gap-2">
+                                <Input size="sm" placeholder="Search" icon={SearchLg} shortcut="/" wrapperClassName="w-64" value={search} onChange={setSearch} />
+                                <button
+                                    type="button"
+                                    onClick={onRefresh}
+                                    className="flex cursor-pointer items-center justify-center rounded-md border border-secondary bg-primary p-2.5 shadow-xs transition hover:bg-primary_hover"
+                                >
+                                    <RefreshCcw03 className={cx("size-5 text-fg-quaternary", isRefreshing && "spin-once")} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="rounded-xl border border-secondary bg-primary">
+                            <div className="flex items-center justify-between px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                    <LeadsSimpleFilter label="Not Completed"       options={["Not Completed", "Completed", "All tasks"]}                                     value={completion}  onChange={v => { setCompletion(v);  setPage(1); }} />
+                                    <LeadsSimpleFilter label="My team"             options={["My team", "Alex Buck", "Sarah Chen", "Jake Torres", "All assignees"]}          value={assignee}    onChange={v => { setAssignee(v);    setPage(1); }} />
+                                    <LeadsSimpleFilter label="All due dates"        options={["All due dates", "Today", "Tomorrow", "This week", "Overdue"]}                  value={dueDate}     onChange={v => { setDueDate(v);     setPage(1); }} />
+                                    <LeadsSimpleFilter label="Homeowner: any"       options={["Homeowner: any", "Yes", "No"]}                                                 value={homeowner}   onChange={v => { setHomeowner(v);   setPage(1); }} />
+                                    <LeadsSimpleFilter label="All business types"   options={["All business types", "Limited", "Sole Trader", "Partnership"]}                 value={bizType}     onChange={v => { setBizType(v);     setPage(1); }} />
+                                    <LeadsSimpleFilter label="Playbook: any"        options={["Playbook: any", "Yes", "No"]}                                                  value={playbook}    onChange={v => { setPlaybook(v);    setPage(1); }} />
+                                    <LeadsSimpleFilter label="Call outcome: any"    options={["Call outcome: any", "Connected", "No Answer", "Voicemail", "Callback requested"]} value={callOutcome} onChange={v => { setCallOutcome(v); setPage(1); }} />
+                                    <LeadsSimpleFilter label="Conversion year: any" options={["Conversion year: any", "2024", "2025", "2026"]}                                value={convYear}    onChange={v => { setConvYear(v);    setPage(1); }} />
+                                </div>
+                                <div className={cx("relative", activeFilterCount === 0 && "invisible pointer-events-none")}>
+                                    <button type="button" onClick={resetFilters} className="flex cursor-pointer items-center justify-center rounded-lg border border-primary bg-primary p-2.5 transition duration-100 hover:bg-primary_hover" title="Reset filters">
+                                        <ClearFiltersIcon className="size-5 text-fg-quaternary" />
+                                    </button>
+                                    <span className="pointer-events-none absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white">
+                                        {activeFilterCount}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Table */}
+                <div className="px-5 pb-5">
+                    <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
+                        <table className="w-full border-collapse">
+                            <thead className="sticky top-0 z-10 bg-secondary">
+                                <tr>
+                                    <th className="h-11 cursor-pointer select-none border-b border-secondary py-3 pl-5 pr-4 text-left" onClick={() => handleSort("task")}>
+                                        <div className="flex items-center gap-3">
+                                            <div onClick={e => e.stopPropagation()}>
+                                                <Checkbox
+                                                    isSelected={allPageSelected}
+                                                    isIndeterminate={somePageSelected}
+                                                    onChange={toggleAll}
+                                                />
+                                            </div>
+                                            <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Task</span><SortIcon col="task" /></div>
+                                        </div>
+                                    </th>
+                                    <th className={cx(thCls, "w-[117px]")} onClick={() => handleSort("priority")}>
+                                        <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Priority</span><SortIcon col="priority" /></div>
+                                    </th>
+                                    <th className={cx(thCls, "w-[125px]")} onClick={() => handleSort("due")}>
+                                        <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Due</span><SortIcon col="due" /></div>
+                                    </th>
+                                    <th className="h-11 border-b border-secondary px-4 py-3 text-left">
+                                        <span className="text-xs font-semibold text-quaternary">Phone number</span>
+                                    </th>
+                                    <th className={thCls} onClick={() => handleSort("contactKind")}>
+                                        <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Contact kind</span><SortIcon col="contactKind" /></div>
+                                    </th>
+                                    <th className={thCls} onClick={() => handleSort("assignee")}>
+                                        <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Assignee</span><SortIcon col="assignee" /></div>
+                                    </th>
+                                    <th className="h-11 border-b border-secondary px-4 py-3 text-center">
+                                        <span className="text-xs font-semibold text-quaternary">Playbook</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {pageRows.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={8} className="bg-primary px-6 py-10 text-center text-sm text-tertiary">
+                                            No tasks match your filters.
+                                        </td>
+                                    </tr>
+                                ) : pageRows.map(task => (
+                                    <tr key={task.id} onClick={() => setOpenTaskId(task.id)} className={cx("group cursor-pointer", exitingIds.has(task.id) && "task-row-exit")}>
+                                        <td className={tdOuter(task.id)}>
+                                            <div className={tdInner(task.id, "gap-3 pl-5 pr-4")} style={tdInnerStyle(task.id)}>
+                                                <div onClick={e => e.stopPropagation()}>
+                                                    <Checkbox
+                                                        isSelected={selected.has(task.id)}
+                                                        onChange={() => toggleRow(task.id)}
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className={cx("text-sm font-medium", completedIds.has(task.id) ? "text-tertiary line-through" : "text-primary")}>{task.task}</span>
+                                                    <span className="text-sm text-tertiary">{task.contactName} • {task.company}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className={tdOuter(task.id)}>
+                                            <div className={tdInner(task.id)} style={tdInnerStyle(task.id)}>
+                                                <TaskPriorityBadge priority={task.priority} />
+                                            </div>
+                                        </td>
+                                        <td className={tdOuter(task.id)}>
+                                            <div className={tdInner(task.id)} style={tdInnerStyle(task.id)}>
+                                                <span className={cx("text-sm font-medium", task.due === "Yesterday" ? "text-error-600" : "text-secondary")}>
+                                                    {task.due}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className={tdOuter(task.id)}>
+                                            <div className={tdInner(task.id, "text-sm text-tertiary")} style={tdInnerStyle(task.id)}>{task.phone}</div>
+                                        </td>
+                                        <td className={tdOuter(task.id)}>
+                                            <div className={tdInner(task.id)} style={tdInnerStyle(task.id)}>
+                                                <TaskContactKindBadge kind={task.contactKind} />
+                                            </div>
+                                        </td>
+                                        <td className={tdOuter(task.id)}>
+                                            <div className={tdInner(task.id, "text-sm text-tertiary")} style={tdInnerStyle(task.id)}>{task.assignee}</div>
+                                        </td>
+                                        <td className={tdOuter(task.id)}>
+                                            <div className={tdInner(task.id, "justify-center")} style={tdInnerStyle(task.id)}>
+                                                <div className="flex items-center justify-center rounded-[6px] p-1.5">
+                                                    {task.playbookDone
+                                                        ? <Check  className="size-4 text-fg-quaternary" />
+                                                        : <XClose className="size-4 text-fg-quaternary" />
+                                                    }
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        {/* Pagination */}
+                        <div className="flex shrink-0 items-center justify-between border-t border-secondary px-5 pt-5 pb-4">
+                            <button type="button" disabled={page === 1} onClick={() => setPage(p => p - 1)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-secondary bg-primary px-3 py-2 text-sm font-semibold text-secondary transition hover:bg-primary_hover disabled:cursor-not-allowed disabled:text-disabled">
+                                <ArrowLeft className="size-5" /> Previous
+                            </button>
+                            <div className="flex items-center gap-0.5">
+                                {pages.map((p, i) => (
+                                    <button key={i} type="button" disabled={p === "…"} onClick={() => typeof p === "number" && setPage(p)}
+                                        className={cx("flex size-10 items-center justify-center rounded-lg text-sm font-medium transition",
+                                            p === page ? "bg-primary_hover text-secondary" : "text-tertiary hover:bg-primary_hover",
+                                            p === "…" && "cursor-default",
+                                        )}>
+                                        {p}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <FilterSelect value={String(rowsPerPage)} onChange={v => { setRowsPerPage(Number(v)); setPage(1); }} options={["10", "50", "100"]} selectClassName="py-2" />
+                                <button type="button" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-secondary bg-primary px-3 py-2 text-sm font-semibold text-secondary transition hover:bg-primary_hover disabled:cursor-not-allowed disabled:text-disabled">
+                                    Next <ArrowRight className="size-5" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {createPortal(
+            <div className={cx(
+                "fixed bottom-6 left-1/2 z-50 -translate-x-1/2 transition-all duration-200",
+                selected.size > 0 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none",
+            )}>
+                <div className="flex min-w-[560px] items-center gap-3 rounded-xl border border-secondary bg-primary px-4 py-4 shadow-lg">
+                    <div className="flex size-10 shrink-0 items-center justify-center">
+                        <CheckDone01 className="size-7 text-fg-brand-primary" />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-sm font-semibold text-primary">
+                            {selected.size} task{selected.size !== 1 ? "s" : ""} selected
+                        </span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-sm text-tertiary">{priLabel}</span>
+                            <span className="size-1 shrink-0 rounded-full bg-fg-quaternary" />
+                            <span className="text-sm text-tertiary">{dateLabel}</span>
+                            <span className="size-1 shrink-0 rounded-full bg-fg-quaternary" />
+                            <span className="text-sm text-tertiary">{assignLabel}</span>
+                        </div>
+                    </div>
+                    <div className="ml-2 flex shrink-0 items-center gap-2">
+                        <button type="button" className="flex cursor-pointer items-center justify-center rounded-md border border-secondary bg-primary p-2.5 shadow-xs transition hover:bg-primary_hover">
+                            <UserEdit className="size-5 text-fg-quaternary" />
+                        </button>
+                        <button type="button" className="flex cursor-pointer items-center justify-center rounded-md border border-secondary bg-primary p-2.5 shadow-xs transition hover:bg-primary_hover">
+                            <ClockRewind className="size-5 text-fg-quaternary" />
+                        </button>
+                        <button
+                            type="button"
+                            className="flex cursor-pointer items-center justify-center rounded-md bg-brand-solid p-2.5 shadow-xs transition hover:opacity-90"
+                            onClick={() => {
+                                const ids = [...selected];
+                                setSelected(new Set());
+                                if (allSelectedCompleted) {
+                                    setCompletedIds(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n; });
+                                } else if (completion === "Not Completed") {
+                                    setExitingIds(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n; });
+                                    setTimeout(() => {
+                                        // Remove slide class first — browser paints the row at h=72 without animation
+                                        setExitingIds(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n; });
+                                        // One rAF later, set h=0 so the browser has a clear "from 72" start value
+                                        requestAnimationFrame(() => {
+                                            setCollapsingIds(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n; });
+                                        });
+                                    }, 250);
+                                    setTimeout(() => {
+                                        setCompletedIds(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n; });
+                                        setCollapsingIds(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n; });
+                                    }, 470);
+                                } else {
+                                    setCompletedIds(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n; });
+                                }
+                            }}
+                        >
+                            {allSelectedCompleted
+                                ? <RefreshCcw01 className="size-5 text-white" />
+                                : <Check        className="size-5 text-white" />
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>,
+            document.body,
+        )}
+
+        {openTask && (
+            <LeadOverlay
+                lead={taskToLeadRow(openTask)}
+                leadIndex={openTaskIdx}
+                totalLeads={sorted.length}
+                isClosing={isClosingTask}
+                onClose={handleCloseTask}
+                onPrev={() => openTaskIdx > 0 && setOpenTaskId(sorted[openTaskIdx - 1].id)}
+                onNext={() => openTaskIdx < sorted.length - 1 && setOpenTaskId(sorted[openTaskIdx + 1].id)}
+                hideNewTask
+                relatedTaskRows={TASKS_DATA.filter(t => t.contactName === openTask.contactName)}
             />
         )}
         </>
@@ -5204,6 +5810,7 @@ export const LoveyPortal = () => {
     const selectedLead = selectedLeadId ? stageLeads.find((l) => l.id === selectedLeadId) ?? null : null;
     const isHomePage  = !selectedLeadId && (pathname === "/portal" || pathname === "/portal/");
     const isLeadsPage = !selectedLeadId && pathname === "/portal/leads";
+    const isTasksPage = !selectedLeadId && pathname === "/portal/tasks";
     const isAppsPage    = !selectedLeadId && (pathname === "/portal/applications" || pathname === "/portal/borrowers");
     const isNoAccessPage   = !selectedLeadId && pathname === "/portal/noaccess";
     const isSupportPage    = !selectedLeadId && pathname === "/portal/bug";
@@ -5328,6 +5935,8 @@ export const LoveyPortal = () => {
                 <PortalHomePage onRefresh={handleRefresh} isRefreshing={isRefreshing} />
             ) : isLeadsPage ? (
                 <LeadsPage isRefreshing={isRefreshing} onLeadTasksChange={handleLeadTasksChange} />
+            ) : isTasksPage ? (
+                <TasksPage onRefresh={handleRefresh} isRefreshing={isRefreshing} />
             ) : isAppsPage ? (
             <div
                 {...(view === "table" ? tableDrag.dragProps : {})}

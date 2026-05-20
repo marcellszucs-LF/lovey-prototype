@@ -72,6 +72,16 @@ body {
     animation: spin-once 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+/* Task row exit — slide right + fade, then height collapses */
+@keyframes task-row-slide-out {
+    from { transform: translateX(0); opacity: 1; }
+    to   { transform: translateX(110%); opacity: 0; }
+}
+
+.task-row-exit {
+    animation: task-row-slide-out 250ms ease-in-out forwards;
+}
+
 /* Skeleton shimmer animation */
 @keyframes shimmer {
     0% {
