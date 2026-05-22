@@ -2425,12 +2425,13 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     title="Contact Information"
                                     badge={
                                         <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
-                                            <span className="text-center text-xs font-medium text-secondary">1</span>
+                                            <span className="text-center text-xs font-medium text-secondary">3</span>
                                         </div>
                                     }
                                     raw
                                 >
                                     <div className="flex flex-col gap-3 rounded-xl border border-secondary bg-primary px-5 pb-3 pt-5">
+                                        {/* Contact 1 — Applicant */}
                                         <div className="flex flex-wrap items-start gap-3 border-b border-secondary pb-3 px-1">
                                             <div className="flex flex-col w-[calc(50%-6px)]">
                                                 <span className="text-sm text-tertiary">Contact Name</span>
@@ -2444,6 +2445,24 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             <SummaryField label="Date of Birth"               value="24-05-1995"     className="w-[calc(50%-6px)]" />
                                             <SummaryField label="Shareholdings"               value="25%"            className="w-[calc(50%-6px)]" />
                                             <SummaryField label="Anti Money Laundering Check" value="Pending"        className="w-[calc(50%-6px)]" />
+                                        </div>
+                                        {/* Contact 2 */}
+                                        <div className="flex flex-wrap items-start gap-3 border-b border-secondary pb-3 px-1">
+                                            <SummaryField label="Contact Name"                value="Ms. Jamie Lee"              className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Email"                       value="jamielees@examplemail.com"   className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Phone"                       value="07894561234"                 className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Date of Birth"               value="15-11-1988"                  className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Shareholdings"               value="25%"                         className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Anti Money Laundering Check" value="Passed"                      className="w-[calc(50%-6px)]" />
+                                        </div>
+                                        {/* Contact 3 — no bottom border */}
+                                        <div className="flex flex-wrap items-start gap-3 px-1">
+                                            <SummaryField label="Contact Name"                value="Dr. Samira Khan"             className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Email"                       value="s.khan@samplemail.net"       className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Phone"                       value="07987654321"                 className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Date of Birth"               value="30-07-1990"                  className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Shareholdings"               value="50%"                         className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Anti Money Laundering Check" value="Pending"                     className="w-[calc(50%-6px)]" />
                                         </div>
                                     </div>
                                 </InfoCard>
