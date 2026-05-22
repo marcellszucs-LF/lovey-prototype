@@ -1976,7 +1976,7 @@ const SummaryFieldAction = ({
                 </span>
             </div>
             {href ? (
-                <a href={href} className={btnClass}>
+                <a href={href} target="_blank" rel="noopener noreferrer" className={btnClass}>
                     <Icon className="size-5 text-fg-quaternary" />
                 </a>
             ) : (
@@ -2335,7 +2335,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                         <SummaryField label="Company name"   value={lead.company} />
                         <SummaryField label="Company Number" value={lead.companyNumber} />
                         <SummaryField label="Incorporated"   value={lead.incorporated} />
-                        <SummaryFieldAction label="Business Address" value={lead.address} icon={MarkerPin02} />
+                        <SummaryFieldAction label="Business Address" value={lead.address} icon={MarkerPin02} href={lead.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address)}` : undefined} />
 
                         <div className="h-[1.5px] bg-[var(--color-border-secondary)]" />
 
