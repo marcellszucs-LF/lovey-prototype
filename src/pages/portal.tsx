@@ -58,6 +58,7 @@ import {
     InfoCircle,
     EyeOff,
     Eye,
+    MarkerPin02,
 } from "@untitledui/icons";
 import { CalendarDate } from "@internationalized/date";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -1857,6 +1858,54 @@ const AssigneePicker = ({
     );
 };
 
+const StatusPicker = ({ value, onChange }: { value: LeadStage; onChange: (v: LeadStage) => void }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const current = columnConfig.find((c) => c.id === value);
+
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: MouseEvent) => {
+            if (!ref.current?.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [open]);
+
+    return (
+        <div className="flex flex-col gap-1">
+            <span className="text-sm text-tertiary">Status</span>
+            <div ref={ref} className="relative">
+                <button
+                    type="button"
+                    onClick={() => setOpen((o) => !o)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-primary bg-primary px-3 py-2 text-sm font-semibold text-secondary shadow-xs transition hover:bg-primary_hover"
+                >
+                    <span>{current?.label ?? value}</span>
+                    <ChevronDown className="size-4 text-fg-quaternary" />
+                </button>
+                {open && (
+                    <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-xl border border-primary bg-primary shadow-lg">
+                        {columnConfig.map((col) => (
+                            <button
+                                key={col.id}
+                                type="button"
+                                onClick={() => { onChange(col.id); setOpen(false); }}
+                                className={cx(
+                                    "flex w-full items-center px-3 py-2 text-sm transition hover:bg-primary_hover",
+                                    col.id === value ? "font-semibold text-primary" : "text-secondary",
+                                )}
+                            >
+                                {col.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // ─── Lead Detail View ─────────────────────────────────────────────────────────
 
 
@@ -2213,6 +2262,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
     const navigate = useNavigate();
     const [tab, setTab] = useState<DetailTab>("overview");
     const [assignee, setAssignee] = useState(lead.assignee);
+    const [stage, setStage] = useState<LeadStage>(lead.stage);
     const pdfIframeRef = useRef<HTMLIFrameElement>(null);
     const [toastVisible, setToastVisible] = useState(false);
     const [toastMessage, setToastMessage] = useState("Copied to your clipboard");
@@ -2284,8 +2334,12 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                     <PanelCard title="Quick Summary" innerClassName="flex flex-col gap-3 px-5 py-4">
                         <SummaryField label="Company name"   value={lead.company} />
                         <SummaryField label="Company Number" value={lead.companyNumber} />
-                        <SummaryField label="Address"        value={lead.address} />
                         <SummaryField label="Incorporated"   value={lead.incorporated} />
+                        <SummaryFieldAction label="Business Address" value={lead.address} icon={MarkerPin02} />
+
+                        <div className="h-[1.5px] bg-[var(--color-border-secondary)]" />
+
+                        <StatusPicker value={stage} onChange={setStage} />
 
                         <div className="h-[1.5px] bg-[var(--color-border-secondary)]" />
 
