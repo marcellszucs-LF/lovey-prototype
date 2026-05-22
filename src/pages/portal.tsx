@@ -2349,7 +2349,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     }
                                     raw
                                 >
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs">
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
                                         <div className="flex">
                                             <div className="flex shrink-0 flex-col">
                                                 <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
@@ -2377,7 +2377,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
 
                                 {/* ── Score card ── */}
                                 <InfoCard title="Score card" raw>
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs">
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
                                         <div className="flex items-center gap-2 bg-utility-success-50 px-5 py-2">
                                             <span className="whitespace-nowrap text-[48px] font-bold leading-[60px] tracking-[-0.96px] text-success-primary">15.9</span>
                                             <div className="flex flex-col">
@@ -2450,7 +2450,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
 
                                 {/* ── Company Payments CAIS summary ── */}
                                 <InfoCard title="Company Payments - CAIS summary" raw>
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs">
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
                                         <div className="flex">
                                             {/* Date column */}
                                             <div className="flex shrink-0 flex-col">
