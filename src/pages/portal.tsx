@@ -1881,15 +1881,17 @@ const SummaryField = ({ label, value, className }: { label: string; value?: stri
 };
 
 // Section card for Overview tab — same visual as PanelCard but with 2-col wrap inner layout
-const InfoCard = ({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) => (
+const InfoCard = ({ title, badge, children, raw }: { title: string; badge?: React.ReactNode; children: React.ReactNode; raw?: boolean }) => (
     <div className="flex w-full flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
         <div className="flex h-11 shrink-0 items-center gap-4 pl-5 pr-3">
             <span className="flex-1 text-sm font-semibold text-primary">{title}</span>
             {badge}
         </div>
-        <div className="flex flex-wrap gap-3 rounded-xl border border-secondary bg-primary px-6 py-5">
-            {children}
-        </div>
+        {raw ? children : (
+            <div className="flex flex-wrap gap-3 rounded-xl border border-secondary bg-primary px-6 py-5">
+                {children}
+            </div>
+        )}
     </div>
 );
 
@@ -2149,6 +2151,64 @@ const DecisionTab = ({ lead, onDecision, existingDecision }: { lead: Lead; onDec
 type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision";
 
 
+// ─── Overview tab static mock data ────────────────────────────────────────────
+
+const RULE_OUTCOMES = [
+    { rule: "Provenir Underwriting Report", message: "", muted: false },
+    { rule: "DirectorCardsUtilization", message: "Director has used more than 75% of credit limit or invalid data", muted: true },
+    { rule: "DirectorMissedPaymentsL6m", message: "Director has missed payments in 6 months or invalid data", muted: true },
+    { rule: "Other Made up Report name", message: "", muted: false },
+    { rule: "ProblemCode", message: "Magna magna proident velit pariatur duis officia. Pariatur ipsum adipisicing ex non sit.", muted: true },
+];
+
+const SCORE_CARD_ROWS = [
+    { characteristic: "Net Worth", attribute: "249092", partialScore: "3.33" },
+    { characteristic: "Company Age (months)", attribute: "37", partialScore: "3.35" },
+    { characteristic: "High Risk Industry", attribute: "0.0", partialScore: "0" },
+    { characteristic: "Total Worst Historical Status", attribute: "0.0", partialScore: "0" },
+    { characteristic: "Number of CCJs", attribute: "0", partialScore: "0" },
+    { characteristic: "Worts Status in the last 6 monhts", attribute: "1", partialScore: "0" },
+    { characteristic: "SME Z-score", attribute: "379", partialScore: "2.5" },
+    { characteristic: "Probability of Default in a year", attribute: "0.0115", partialScore: "1.33" },
+    { characteristic: "HMRC Arrears", attribute: "0", partialScore: "0" },
+    { characteristic: "Current Ratio", attribute: "3.4429236522244", partialScore: "3.33" },
+    { characteristic: "Total Director Equity", attribute: "3175504.0", partialScore: "1.66" },
+    { characteristic: "Directorships Failed", attribute: "0", partialScore: "0" },
+];
+
+const CAIS_COLS = ["0", "1", "2", "3", "4", "5", "6", "U", "Def"] as const;
+type CaisCol = typeof CAIS_COLS[number];
+
+const CAIS_ROWS: { date: string; values: Partial<Record<CaisCol, number>> }[] = [
+    { date: "04/26", values: { "0": 1, "1": 1, "6": 1 } },
+    { date: "03/26", values: { "0": 1, "1": 1, "6": 1 } },
+    { date: "02/26", values: { "0": 2, "2": 1, "Def": 1 } },
+    { date: "01/26", values: { "0": 3, "2": 1, "Def": 2 } },
+    { date: "12/25", values: { "0": 3, "4": 1 } },
+    { date: "11/25", values: { "0": 3, "4": 1, "U": 1 } },
+    { date: "10/25", values: { "0": 3, "1": 4, "U": 2 } },
+    { date: "09/25", values: { "0": 6, "3": 6, "U": 6, "Def": 6 } },
+];
+
+const caisColType = (col: CaisCol): "success" | "warning" | "gray" | "error" =>
+    col === "0" ? "success" : col === "U" ? "gray" : col === "Def" ? "error" : "warning";
+
+const CAIS_BG: Record<"success" | "warning" | "gray" | "error", string[]> = {
+    success: ["", "bg-utility-success-50", "bg-utility-success-100", "bg-utility-success-200", "bg-utility-success-300", "bg-utility-success-400", "bg-utility-success-600"],
+    warning: ["", "bg-utility-warning-50", "bg-utility-warning-100", "bg-utility-warning-200", "bg-utility-warning-300", "bg-utility-warning-400", "bg-utility-warning-600"],
+    gray:    ["", "bg-utility-gray-50",    "bg-utility-gray-100",    "bg-utility-gray-200",    "bg-utility-gray-300",    "bg-utility-gray-400",    "bg-utility-gray-600"],
+    error:   ["", "bg-utility-error-50",   "bg-utility-error-100",   "bg-utility-error-200",   "bg-utility-error-300",   "bg-utility-error-400",   "bg-utility-error-600"],
+};
+
+const CAIS_TEXT: Record<"success" | "warning" | "gray" | "error", string> = {
+    success: "text-success-primary",
+    warning: "text-warning-primary",
+    gray: "text-tertiary",
+    error: "text-error-primary",
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage }; onDecision: (d: "approved" | "declined") => void }) => {
     const navigate = useNavigate();
     const [tab, setTab] = useState<DetailTab>("overview");
@@ -2270,26 +2330,169 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                     <div className={cx("flex flex-1 flex-col gap-4 py-4", tab === "export" ? "min-h-0 overflow-hidden" : "scrollbar-hide overflow-y-auto")}>
                         {tab === "overview" && (
                             <>
+                                {/* ── Status badges ── */}
+                                <div className="flex flex-wrap gap-3">
+                                    <Badge type="pill-color" color="error"   size="sm">PSC Utilisation</Badge>
+                                    <Badge type="pill-color" color="success" size="sm">Liquidity</Badge>
+                                    <Badge type="pill-color" color="success" size="sm">Payments</Badge>
+                                    <Badge type="pill-color" color="success" size="sm">Net Worth</Badge>
+                                    <Badge type="pill-color" color="success" size="sm">PSC Public Gazette</Badge>
+                                </div>
+
+                                {/* ── Rule Outcomes ── */}
+                                <InfoCard
+                                    title="Rule Outcomes"
+                                    badge={
+                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                            <span className="text-center text-xs font-medium text-secondary">3</span>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs">
+                                        <div className="flex">
+                                            <div className="flex shrink-0 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
+                                                    <span className="text-xs font-semibold text-quaternary">Rule</span>
+                                                </div>
+                                                {RULE_OUTCOMES.map(({ rule, muted }) => (
+                                                    <div key={rule} className="flex h-14 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
+                                                        <span className={cx("whitespace-nowrap text-sm font-medium", muted ? "text-tertiary" : "text-secondary")}>{rule}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
+                                                    <span className="text-xs font-semibold text-quaternary">Message</span>
+                                                </div>
+                                                {RULE_OUTCOMES.map(({ rule, message }) => (
+                                                    <div key={rule} className="flex h-14 items-center border-b border-secondary px-6 last:border-b-0">
+                                                        {message && <span className="text-sm font-medium text-secondary">{message}</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Score card ── */}
+                                <InfoCard title="Score card" raw>
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs">
+                                        <div className="flex items-center gap-2 bg-utility-success-50 px-5 py-2">
+                                            <span className="whitespace-nowrap text-[48px] font-bold leading-[60px] tracking-[-0.96px] text-success-primary">15.9</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-secondary">Combined Score</span>
+                                                <span className="text-sm font-medium text-quaternary">(lower is better)</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex border-t border-secondary">
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Characteristic</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
+                                                        <span className="whitespace-nowrap text-sm font-medium text-tertiary">{characteristic}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Attribute</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic, attribute }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary px-6 last:border-b-0">
+                                                        <span className="text-sm text-tertiary">{attribute}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex shrink-0 flex-col">
+                                                <div className="flex h-11 items-center justify-end border-b border-secondary bg-primary px-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Partial Score</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic, partialScore }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center justify-end border-b border-secondary px-6 last:border-b-0">
+                                                        <span className="text-sm font-semibold text-success-primary">{partialScore}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Contact Information ── */}
+                                <InfoCard
+                                    title="Contact Information"
+                                    badge={
+                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                            <span className="text-center text-xs font-medium text-secondary">1</span>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div className="flex flex-col gap-3 rounded-xl border border-secondary bg-primary px-5 pb-3 pt-5">
+                                        <div className="flex flex-wrap items-start gap-3 border-b border-secondary pb-3 px-1">
+                                            <div className="flex flex-col w-[calc(50%-6px)]">
+                                                <span className="text-sm text-tertiary">Contact Name</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-base font-semibold text-secondary">{lead.applicantName}</span>
+                                                    <Badge type="pill-color" color="brand" size="sm">Applicant</Badge>
+                                                </div>
+                                            </div>
+                                            <SummaryField label="Email"                       value={lead.email}     className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Phone"                       value={lead.telephone} className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Date of Birth"               value="24-05-1995"     className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Shareholdings"               value="25%"            className="w-[calc(50%-6px)]" />
+                                            <SummaryField label="Anti Money Laundering Check" value="Pending"        className="w-[calc(50%-6px)]" />
+                                        </div>
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Company Payments CAIS summary ── */}
+                                <InfoCard title="Company Payments - CAIS summary" raw>
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs">
+                                        <div className="flex">
+                                            {/* Date column */}
+                                            <div className="flex shrink-0 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6" />
+                                                {CAIS_ROWS.map(({ date }) => (
+                                                    <div key={date} className="flex h-12 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
+                                                        <span className="whitespace-nowrap text-sm text-quaternary">{date}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {/* Value columns */}
+                                            {CAIS_COLS.map((col) => {
+                                                const type = caisColType(col);
+                                                return (
+                                                    <div key={col} className="flex flex-1 flex-col">
+                                                        <div className="flex h-11 items-center justify-center border-b border-secondary bg-primary px-4">
+                                                            <span className="text-xs text-quaternary">{col}</span>
+                                                        </div>
+                                                        {CAIS_ROWS.map(({ date, values }) => {
+                                                            const v = values[col];
+                                                            const bg = v ? (CAIS_BG[type][v] ?? CAIS_BG[type][6]) : "";
+                                                            const text = v ? (v >= 6 ? "text-white" : CAIS_TEXT[type]) : "";
+                                                            return (
+                                                                <div key={date} className={cx("flex h-12 items-center justify-center border-b border-secondary px-4 last:border-b-0", bg)}>
+                                                                    {v != null && <span className={cx("text-sm font-semibold", text)}>{v}</span>}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Company details ── */}
                                 <InfoCard title="Company details">
                                     <SummaryField label="Name"                     value={lead.company}        className="w-[calc(50%-6px)]" />
                                     <SummaryField label="Companies House Number"   value={lead.companyNumber}  className="w-[calc(50%-6px)]" />
                                     <SummaryField label="Registered Address"       value={lead.address}        className="w-[calc(50%-6px)]" />
                                     <SummaryField label="Incorporated"             value={lead.incorporated}   className="w-[calc(50%-6px)]" />
                                     <SummaryField label="Status"                   value="Active"              className="w-[calc(50%-6px)]" />
-                                </InfoCard>
-
-                                <InfoCard
-                                    title="Directors"
-                                    badge={
-                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
-                                            <span className="text-center text-xs font-medium text-secondary">1</span>
-                                        </div>
-                                    }
-                                >
-                                    <SummaryField label="Name"       value={lead.applicantName} className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Email"      value={lead.email}         className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Telephone"  value={lead.telephone}     className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Role"       value="Director"           className="w-[calc(50%-6px)]" />
                                 </InfoCard>
 
                                 <InfoCard title="Financials">
