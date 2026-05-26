@@ -70,7 +70,7 @@ import { ProgressBarBase } from "@/components/base/progress-indicators/progress-
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { cx } from "@/utils/cx";
-import { Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTip, Line, ComposedChart } from "recharts";
+import { Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTip, Line, ComposedChart } from "recharts";
 import { NotFound } from "@/pages/not-found";
 import { NoAccess } from "@/pages/no-access";
 import { FeatureRequest } from "@/pages/feature-request";
@@ -2201,84 +2201,62 @@ const DecisionTab = ({ lead, onDecision, existingDecision }: { lead: Lead; onDec
 type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision";
 
 
-// ─── GaugeChart ───────────────────────────────────────────────────────────────
+// ─── WiserFundingChart ────────────────────────────────────────────────────────
 
-const GaugeChart = ({
-    value,
-    max,
-    displayValue,
-    label,
-    benchmark,
-    benchmarkLabel,
-    gradientFrom,
-    gradientTo,
-}: {
-    value: number;
-    max: number;
-    displayValue: string;
-    label: string;
-    benchmark?: number;
-    benchmarkLabel?: string;
-    gradientFrom: string;
-    gradientTo: string;
-}) => {
-    const id = useId();
-    const W = 176, cy = 78, R = 64, sw = 13;
-    const arcLen = Math.PI * R;
-    const fraction = Math.min(Math.max(value / max, 0), 1);
-    const filled = fraction * arcLen;
+const WiserFundingChart = () => {
+    const data = WISER_SCORES.map(s => ({
+        metric: s.label,
+        valuePct: (s.value / s.max) * 100,
+        bmPct: (s.benchmark / s.max) * 100,
+        displayValue: s.displayValue,
+        gradientFrom: s.gradientFrom,
+        gradientTo: s.gradientTo,
+    }));
 
-    const ptOnArc = (f: number) => ({
-        x: W / 2 + R * Math.cos(Math.PI * (1 - f)),
-        y: cy - R * Math.sin(Math.PI * (1 - f)),
-    });
+    const CustomBarShape = (props: any) => {
+        const { x, y, width, height, value, payload, index } = props;
+        if (!height || value <= 0) return null;
 
-    const endPt = ptOnArc(fraction);
-    const bmPt = benchmark != null ? ptOnArc(Math.min(benchmark / max, 1)) : null;
-    const arcPath = `M ${W / 2 - R} ${cy} A ${R} ${R} 0 0 1 ${W / 2 + R} ${cy}`;
+        const totalW = Math.round(width * 100 / value);
+        const r = height / 2;
+        const bmX = x + (payload.bmPct / 100) * totalW;
+        const gradId = `wfg-${index}`;
+
+        return (
+            <g>
+                <defs>
+                    <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor={payload.gradientFrom} />
+                        <stop offset="100%" stopColor={payload.gradientTo} />
+                    </linearGradient>
+                </defs>
+                {/* Track */}
+                <rect x={x} y={y} width={totalW} height={height} rx={r} ry={r} fill="#f0e8e2" />
+                {/* Value fill */}
+                <rect x={x} y={y} width={width} height={height} rx={r} ry={r} fill={`url(#${gradId})`} />
+                {/* Benchmark marker */}
+                <circle cx={bmX} cy={y + r} r={r + 2} fill="white" stroke="#9e9490" strokeWidth={1.5} />
+                {/* Value label */}
+                <text x={x + totalW + 10} y={y + r} fontSize={13} fontWeight={600} fill="#1b1413" dominantBaseline="middle">
+                    {payload.displayValue}
+                </text>
+            </g>
+        );
+    };
 
     return (
-        <div className="flex flex-col items-center gap-3">
-            <p className="text-sm font-medium text-secondary text-center">{label}</p>
-            <div className="relative" style={{ width: W, height: cy + 4 }}>
-                <svg width={W} height={cy + 4} viewBox={`0 0 ${W} ${cy + 4}`} overflow="visible">
-                    <defs>
-                        <linearGradient id={`g-${id}`} gradientUnits="userSpaceOnUse" x1={W / 2 - R} y1={0} x2={W / 2 + R} y2={0}>
-                            <stop offset="0%" stopColor={gradientFrom} />
-                            <stop offset="100%" stopColor={gradientTo} />
-                        </linearGradient>
-                    </defs>
-                    {/* Background track */}
-                    <path d={arcPath} fill="none" stroke="#f0e8e2" strokeWidth={sw} strokeLinecap="round" />
-                    {/* Value arc */}
-                    {fraction > 0.01 && (
-                        <path
-                            d={arcPath}
-                            fill="none"
-                            stroke={`url(#g-${id})`}
-                            strokeWidth={sw}
-                            strokeLinecap="round"
-                            strokeDasharray={`${filled} ${arcLen}`}
-                        />
-                    )}
-                    {/* Benchmark dot */}
-                    {bmPt && <circle cx={bmPt.x} cy={bmPt.y} r={5} fill="#9e9490" />}
-                    {/* Value endpoint cap (white filled) */}
-                    {fraction > 0.01 && (
-                        <circle cx={endPt.x} cy={endPt.y} r={6} fill="white" stroke={gradientTo} strokeWidth={2.5} filter="drop-shadow(0 1px 2px rgba(10,13,18,0.15))" />
-                    )}
-                </svg>
-                {/* Center value label */}
-                <div className="absolute left-1/2 -translate-x-1/2 text-xl font-semibold text-primary whitespace-nowrap" style={{ top: cy - 14 }}>
-                    {displayValue}
-                </div>
+        <div className="flex flex-col">
+            <ResponsiveContainer width="100%" height={156}>
+                <BarChart layout="vertical" data={data} barSize={14} margin={{ top: 16, right: 56, bottom: 16, left: 8 }}>
+                    <XAxis type="number" domain={[0, 100]} hide />
+                    <YAxis type="category" dataKey="metric" tick={{ fontSize: 13, fill: "#4a4340", fontWeight: 500 }} axisLine={false} tickLine={false} width={158} />
+                    <Bar dataKey="valuePct" shape={<CustomBarShape />} isAnimationActive={false} background={false} />
+                </BarChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-1.5 pb-3" style={{ paddingLeft: 174 }}>
+                <span className="size-[10px] shrink-0 rounded-full border border-[#9e9490] bg-white" />
+                <span className="text-xs text-secondary">Industry benchmark</span>
             </div>
-            {benchmarkLabel && (
-                <div className="flex items-center gap-1.5">
-                    <span className="size-1.5 shrink-0 rounded-full bg-[#9e9490]" />
-                    <span className="text-xs text-secondary">{benchmarkLabel}</span>
-                </div>
-            )}
         </div>
     );
 };
@@ -2679,21 +2657,9 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 </InfoCard>
 
                                 {/* ── Wiser Funding Scores ── */}
-                                <InfoCard title="Wiser Funding Scores">
-                                    <div className="flex w-full items-start justify-around py-2">
-                                        {WISER_SCORES.map((s) => (
-                                            <GaugeChart
-                                                key={s.label}
-                                                label={s.label}
-                                                displayValue={s.displayValue}
-                                                value={s.value}
-                                                max={s.max}
-                                                benchmark={s.benchmark}
-                                                benchmarkLabel={s.benchmarkLabel}
-                                                gradientFrom={s.gradientFrom}
-                                                gradientTo={s.gradientTo}
-                                            />
-                                        ))}
+                                <InfoCard title="Wiser Funding Scores" raw>
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                        <WiserFundingChart />
                                     </div>
                                 </InfoCard>
 
