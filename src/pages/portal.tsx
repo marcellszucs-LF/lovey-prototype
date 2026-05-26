@@ -70,7 +70,7 @@ import { ProgressBarBase } from "@/components/base/progress-indicators/progress-
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { cx } from "@/utils/cx";
-import { Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTip, Line, ComposedChart } from "recharts";
+import { Area, Cell, Pie, PieChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTip, Line, ComposedChart } from "recharts";
 import { NotFound } from "@/pages/not-found";
 import { NoAccess } from "@/pages/no-access";
 import { FeatureRequest } from "@/pages/feature-request";
@@ -2203,63 +2203,73 @@ type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision";
 
 // ─── WiserFundingChart ────────────────────────────────────────────────────────
 
-const WiserFundingChart = () => {
-    const data = WISER_SCORES.map(s => ({
-        metric: s.label,
-        valuePct: (s.value / s.max) * 100,
-        bmPct: (s.benchmark / s.max) * 100,
-        displayValue: s.displayValue,
-        gradientFrom: s.gradientFrom,
-        gradientTo: s.gradientTo,
-    }));
+const PieGauge = ({ s, idx }: { s: (typeof WISER_SCORES)[0]; idx: number }) => {
+    const W = 220, H = 130;
+    const cx = W / 2, cy = H - 8;
+    const iR = 50, oR = 76, midR = (iR + oR) / 2;
+    const gradId = `pg-${idx}`;
 
-    const CustomBarShape = (props: any) => {
-        const { x, y, width, height, value, payload, index } = props;
-        if (!height || value <= 0) return null;
+    const vf = Math.min(Math.max(s.value / s.max, 0), 1);
+    const bf = Math.min(Math.max(s.benchmark / s.max, 0), 1);
 
-        const totalW = Math.round(width * 100 / value);
-        const r = height / 2;
-        const bmX = x + (payload.bmPct / 100) * totalW;
-        const gradId = `wfg-${index}`;
+    // Ring-sector path for the value fill
+    const pt = (r: number, f: number) => ({
+        x: cx + r * Math.cos(Math.PI * (1 - f)),
+        y: cy - r * Math.sin(Math.PI * (1 - f)),
+    });
+    const oStart = pt(oR, 0), oEnd = pt(oR, vf);
+    const iStart = pt(iR, 0), iEnd = pt(iR, vf);
+    const la = vf >= 0.5 ? 1 : 0;
+    const valuePath = `M${oStart.x},${oStart.y} A${oR},${oR} 0 ${la} 1 ${oEnd.x},${oEnd.y} L${iEnd.x},${iEnd.y} A${iR},${iR} 0 ${la} 0 ${iStart.x},${iStart.y} Z`;
 
-        return (
-            <g>
-                <defs>
-                    <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor={payload.gradientFrom} />
-                        <stop offset="100%" stopColor={payload.gradientTo} />
-                    </linearGradient>
-                </defs>
-                {/* Track */}
-                <rect x={x} y={y} width={totalW} height={height} rx={r} ry={r} fill="#f0e8e2" />
-                {/* Value fill */}
-                <rect x={x} y={y} width={width} height={height} rx={r} ry={r} fill={`url(#${gradId})`} />
-                {/* Benchmark marker */}
-                <circle cx={bmX} cy={y + r} r={r + 2} fill="white" stroke="#9e9490" strokeWidth={1.5} />
-                {/* Value label */}
-                <text x={x + totalW + 10} y={y + r} fontSize={13} fontWeight={600} fill="#1b1413" dominantBaseline="middle">
-                    {payload.displayValue}
-                </text>
-            </g>
-        );
-    };
+    // Needle triangle
+    const needleAngle = Math.PI * (1 - vf);
+    const tip = pt(midR, vf);
+    const perp = needleAngle + Math.PI / 2;
+    const bw = 3.5;
+    const b1 = { x: cx + bw * Math.cos(perp), y: cy - bw * Math.sin(perp) };
+    const b2 = { x: cx - bw * Math.cos(perp), y: cy + bw * Math.sin(perp) };
+
+    // Benchmark dot
+    const bm = pt(midR, bf);
 
     return (
-        <div className="flex flex-col">
-            <ResponsiveContainer width="100%" height={156}>
-                <BarChart layout="vertical" data={data} barSize={14} margin={{ top: 16, right: 56, bottom: 16, left: 8 }}>
-                    <XAxis type="number" domain={[0, 100]} hide />
-                    <YAxis type="category" dataKey="metric" tick={{ fontSize: 13, fill: "#4a4340", fontWeight: 500 }} axisLine={false} tickLine={false} width={158} />
-                    <Bar dataKey="valuePct" shape={<CustomBarShape />} isAnimationActive={false} background={false} />
-                </BarChart>
-            </ResponsiveContainer>
-            <div className="flex items-center gap-1.5 pb-3" style={{ paddingLeft: 174 }}>
+        <div className="flex flex-col items-center gap-1">
+            <p className="text-sm font-medium text-secondary text-center whitespace-nowrap">{s.label}</p>
+            <PieChart width={W} height={H}>
+                <defs>
+                    <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={cx - oR} y1={0} x2={cx + oR} y2={0}>
+                        <stop offset="0%" stopColor={s.gradientFrom} />
+                        <stop offset="100%" stopColor={s.gradientTo} />
+                    </linearGradient>
+                </defs>
+                {/* Background track */}
+                <Pie data={[{ value: 1 }]} cx={cx} cy={cy} startAngle={180} endAngle={0} innerRadius={iR} outerRadius={oR} dataKey="value" stroke="none" isAnimationActive={false}>
+                    <Cell fill="#f0e8e2" />
+                </Pie>
+                {/* Gradient value fill */}
+                {vf > 0.005 && <path d={valuePath} fill={`url(#${gradId})`} />}
+                {/* Needle */}
+                <path d={`M${b1.x},${b1.y} L${b2.x},${b2.y} L${tip.x},${tip.y} Z`} fill="#2d2926" />
+                <circle cx={cx} cy={cy} r={5} fill="#2d2926" />
+                {/* Benchmark dot */}
+                <circle cx={bm.x} cy={bm.y} r={5.5} fill="white" stroke="#9e9490" strokeWidth={1.5} />
+                {/* Value label */}
+                <text x={cx} y={cy - 18} textAnchor="middle" fontSize={18} fontWeight={600} fill="#1b1413">{s.displayValue}</text>
+            </PieChart>
+            <div className="flex items-center gap-1.5 -mt-1">
                 <span className="size-[10px] shrink-0 rounded-full border border-[#9e9490] bg-white" />
-                <span className="text-xs text-secondary">Industry benchmark</span>
+                <span className="text-xs text-secondary">{s.benchmarkLabel}</span>
             </div>
         </div>
     );
 };
+
+const WiserFundingChart = () => (
+    <div className="flex items-start justify-around py-4 px-4">
+        {WISER_SCORES.map((s, i) => <PieGauge key={s.label} s={s} idx={i} />)}
+    </div>
+);
 
 // ─── CreditLineChart ───────────────────────────────────────────────────────────
 
