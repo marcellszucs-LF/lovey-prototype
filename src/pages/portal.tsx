@@ -2347,9 +2347,9 @@ const CreditLineChart = ({ account }: { account: CreditAccount }) => {
 // ─── Overview tab static mock data ────────────────────────────────────────────
 
 const WISER_SCORES = [
-    { label: "SME Z-Score",            displayValue: "301",    value: 301,  max: 500, benchmark: 326, gradientFrom: "#ef4444", gradientTo: "#f97316" },
-    { label: "Probability of Default", displayValue: "2.26%",  value: 2.26, max: 20,  benchmark: 3.5, gradientFrom: "#16a34a", gradientTo: "#16a34a" },
-    { label: "Loss Give Default",      displayValue: "42%",    value: 42,   max: 100, benchmark: 48,  gradientFrom: "#ef4444", gradientTo: "#f97316" },
+    { label: "SME Z-Score",            displayValue: "301",    value: 301,  max: 500, benchmark: 326, benchmarkLabel: "Industry benchmark: 326",   gradientFrom: "#ef4444", gradientTo: "#f97316" },
+    { label: "Probability of Default", displayValue: "2.26%",  value: 2.26, max: 20,  benchmark: 3.5, benchmarkLabel: "Industry benchmark: 3.5",   gradientFrom: "#16a34a", gradientTo: "#16a34a" },
+    { label: "Loss Give Default",      displayValue: "82%",    value: 82,   max: 100, benchmark: 82,  benchmarkLabel: "Industry benchmark: 82%",   gradientFrom: "#ef4444", gradientTo: "#f97316" },
 ];
 
 const CREDIT_ACCOUNTS: CreditAccount[] = [
@@ -2689,7 +2689,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 value={s.value}
                                                 max={s.max}
                                                 benchmark={s.benchmark}
-                                                benchmarkLabel={`Industry benchmark: ${s.benchmark}`}
+                                                benchmarkLabel={s.benchmarkLabel}
                                                 gradientFrom={s.gradientFrom}
                                                 gradientTo={s.gradientTo}
                                             />
