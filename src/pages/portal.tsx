@@ -2305,19 +2305,6 @@ const CreditLineChart = ({ account }: { account: CreditAccount }) => {
 
     return (
         <div className="flex flex-col gap-0 pb-4">
-            {/* Legend */}
-            <div className="flex justify-end gap-4 pb-2 pr-1">
-                <div className="flex items-center gap-1.5">
-                    <div className="h-1.5 w-4 rounded-full bg-[#594483]" />
-                    <span className="text-xs text-tertiary">Balance</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="flex gap-[3px]">
-                        {[0,1,2].map(i => <span key={i} className="size-1.5 rounded-full bg-[#a08cca] shrink-0" />)}
-                    </div>
-                    <span className="text-xs text-tertiary">Credit Limit</span>
-                </div>
-            </div>
             {/* Chart */}
             <ResponsiveContainer width="100%" height={160}>
                 <ComposedChart data={account.data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
@@ -2711,7 +2698,24 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 </InfoCard>
 
                                 {/* ── PSC Credit Utilisation ── */}
-                                <InfoCard title="PSC Credit Utilisation" raw>
+                                <InfoCard
+                                    title="PSC Credit Utilisation"
+                                    badge={
+                                        <div className="flex items-center gap-2 rounded-sm border border-secondary px-1.5 py-0.5 shadow-xs">
+                                            <div className="flex items-center gap-1">
+                                                <div className="h-[4px] w-[12px] rounded-full bg-[#594483]" />
+                                                <span className="text-xs text-tertiary">Balance</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <div className="flex gap-[2px]">
+                                                    {[0,1,2].map(i => <span key={i} className="size-[4px] shrink-0 rounded-full bg-[#a08cca]" />)}
+                                                </div>
+                                                <span className="text-xs text-tertiary">Credit Limit</span>
+                                            </div>
+                                        </div>
+                                    }
+                                    raw
+                                >
                                     <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
                                         {CREDIT_ACCOUNTS.map((account, i) => (
                                             <div key={i} className={cx("px-5 pt-4", i < CREDIT_ACCOUNTS.length - 1 && "border-b border-secondary")}>
