@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
@@ -70,6 +70,7 @@ import { ProgressBarBase } from "@/components/base/progress-indicators/progress-
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { cx } from "@/utils/cx";
+import { Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTip, Line, ComposedChart } from "recharts";
 import { NotFound } from "@/pages/not-found";
 import { NoAccess } from "@/pages/no-access";
 import { FeatureRequest } from "@/pages/feature-request";
@@ -2200,7 +2201,223 @@ const DecisionTab = ({ lead, onDecision, existingDecision }: { lead: Lead; onDec
 type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision";
 
 
+// ─── GaugeChart ───────────────────────────────────────────────────────────────
+
+const GaugeChart = ({
+    value,
+    max,
+    displayValue,
+    label,
+    benchmark,
+    benchmarkLabel,
+    gradientFrom,
+    gradientTo,
+}: {
+    value: number;
+    max: number;
+    displayValue: string;
+    label: string;
+    benchmark?: number;
+    benchmarkLabel?: string;
+    gradientFrom: string;
+    gradientTo: string;
+}) => {
+    const id = useId();
+    const W = 176, cy = 78, R = 64, sw = 13;
+    const arcLen = Math.PI * R;
+    const fraction = Math.min(Math.max(value / max, 0), 1);
+    const filled = fraction * arcLen;
+
+    const ptOnArc = (f: number) => ({
+        x: W / 2 + R * Math.cos(Math.PI * (1 - f)),
+        y: cy - R * Math.sin(Math.PI * (1 - f)),
+    });
+
+    const endPt = ptOnArc(fraction);
+    const bmPt = benchmark != null ? ptOnArc(Math.min(benchmark / max, 1)) : null;
+    const arcPath = `M ${W / 2 - R} ${cy} A ${R} ${R} 0 0 1 ${W / 2 + R} ${cy}`;
+
+    return (
+        <div className="flex flex-col items-center gap-3">
+            <p className="text-sm font-medium text-secondary text-center">{label}</p>
+            <div className="relative" style={{ width: W, height: cy + 4 }}>
+                <svg width={W} height={cy + 4} viewBox={`0 0 ${W} ${cy + 4}`} overflow="visible">
+                    <defs>
+                        <linearGradient id={`g-${id}`} gradientUnits="userSpaceOnUse" x1={W / 2 - R} y1={0} x2={W / 2 + R} y2={0}>
+                            <stop offset="0%" stopColor={gradientFrom} />
+                            <stop offset="100%" stopColor={gradientTo} />
+                        </linearGradient>
+                    </defs>
+                    {/* Background track */}
+                    <path d={arcPath} fill="none" stroke="#f0e8e2" strokeWidth={sw} strokeLinecap="round" />
+                    {/* Value arc */}
+                    {fraction > 0.01 && (
+                        <path
+                            d={arcPath}
+                            fill="none"
+                            stroke={`url(#g-${id})`}
+                            strokeWidth={sw}
+                            strokeLinecap="round"
+                            strokeDasharray={`${filled} ${arcLen}`}
+                        />
+                    )}
+                    {/* Benchmark dot */}
+                    {bmPt && <circle cx={bmPt.x} cy={bmPt.y} r={5} fill="#9e9490" />}
+                    {/* Value endpoint cap (white filled) */}
+                    {fraction > 0.01 && (
+                        <circle cx={endPt.x} cy={endPt.y} r={6} fill="white" stroke={gradientTo} strokeWidth={2.5} filter="drop-shadow(0 1px 2px rgba(10,13,18,0.15))" />
+                    )}
+                </svg>
+                {/* Center value label */}
+                <div className="absolute left-1/2 -translate-x-1/2 text-xl font-semibold text-primary whitespace-nowrap" style={{ top: cy - 14 }}>
+                    {displayValue}
+                </div>
+            </div>
+            {benchmarkLabel && (
+                <div className="flex items-center gap-1.5">
+                    <span className="size-1.5 shrink-0 rounded-full bg-[#9e9490]" />
+                    <span className="text-xs text-secondary">{benchmarkLabel}</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── CreditLineChart ───────────────────────────────────────────────────────────
+
+interface CreditLineEntry { month: string; balance: number; limit: number }
+interface CreditAccount {
+    type: string;
+    lastUpdated: string;
+    limitLabel: string;
+    utilisation: number;
+    data: CreditLineEntry[];
+}
+
+const CreditLineChart = ({ account }: { account: CreditAccount }) => {
+    const id = useId();
+    const formatY = (v: number) => {
+        if (v === 0) return "£0";
+        if (v >= 1000) return `£${v / 1000}k`;
+        return `£${v}`;
+    };
+    const utilisationColor = account.utilisation >= 80 ? "text-error-primary" : account.utilisation >= 50 ? "text-warning-primary" : "text-secondary";
+
+    return (
+        <div className="flex flex-col gap-0 pb-4">
+            {/* Legend */}
+            <div className="flex justify-end gap-4 pb-2 pr-1">
+                <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-4 rounded-full bg-[#594483]" />
+                    <span className="text-xs text-tertiary">Balance</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="flex gap-[3px]">
+                        {[0,1,2].map(i => <span key={i} className="size-1.5 rounded-full bg-[#a08cca] shrink-0" />)}
+                    </div>
+                    <span className="text-xs text-tertiary">Credit Limit</span>
+                </div>
+            </div>
+            {/* Chart */}
+            <ResponsiveContainer width="100%" height={160}>
+                <ComposedChart data={account.data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                    <defs>
+                        <linearGradient id={`area-${id}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#a08cca" stopOpacity={0.25} />
+                            <stop offset="100%" stopColor="#a08cca" stopOpacity={0.03} />
+                        </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="#f0e8e2" strokeWidth={1} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#776c65" }} axisLine={false} tickLine={false} dy={6} />
+                    <YAxis tickFormatter={formatY} tick={{ fontSize: 11, fill: "#776c65" }} axisLine={false} tickLine={false} width={36} tickCount={4} />
+                    <Area type="monotone" dataKey="balance" stroke="#594483" strokeWidth={2} fill={`url(#area-${id})`} dot={false} activeDot={{ r: 4, fill: "#594483" }} />
+                    <Line type="monotone" dataKey="limit" stroke="#a08cca" strokeWidth={1.5} strokeDasharray="4 3" dot={false} activeDot={false} />
+                    <RechartsTip
+                        contentStyle={{ background: "white", border: "1px solid #f0e8e2", borderRadius: 8, fontSize: 12, padding: "6px 10px" }}
+                        formatter={(v, name) => [`£${Number(v).toLocaleString()}`, name === "balance" ? "Balance" : "Credit Limit"]}
+                        labelStyle={{ color: "#776c65", fontWeight: 600 }}
+                    />
+                </ComposedChart>
+            </ResponsiveContainer>
+            {/* Metadata row */}
+            <div className="flex gap-3 pt-4 px-1">
+                {[
+                    { label: "Type",         value: account.type,         cls: "text-secondary" },
+                    { label: "Last updated", value: account.lastUpdated,  cls: "text-secondary" },
+                    { label: "Limit",        value: account.limitLabel,   cls: "text-secondary" },
+                    { label: "Utilisation",  value: `${account.utilisation}%`, cls: utilisationColor },
+                ].map(({ label, value, cls }) => (
+                    <div key={label} className="flex flex-1 flex-col">
+                        <span className="text-sm text-tertiary">{label}</span>
+                        <span className={cx("text-base font-semibold", cls)}>{value}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // ─── Overview tab static mock data ────────────────────────────────────────────
+
+const WISER_SCORES = [
+    { label: "SME Z-Score",            displayValue: "301",    value: 301,  max: 500, benchmark: 326, gradientFrom: "#ef4444", gradientTo: "#f97316" },
+    { label: "Probability of Default", displayValue: "2.26%",  value: 2.26, max: 20,  benchmark: 3.5, gradientFrom: "#16a34a", gradientTo: "#16a34a" },
+    { label: "Loss Give Default",      displayValue: "42%",    value: 42,   max: 100, benchmark: 48,  gradientFrom: "#ef4444", gradientTo: "#f97316" },
+];
+
+const CREDIT_ACCOUNTS: CreditAccount[] = [
+    {
+        type: "Credit Card", lastUpdated: "2026.05.24.", limitLabel: "£10,000", utilisation: 92,
+        data: [
+            { month: "Jan", balance: 3500, limit: 8000 },
+            { month: "Feb", balance: 3800, limit: 8000 },
+            { month: "Mar", balance: 5100, limit: 8000 },
+            { month: "Apr", balance: 4700, limit: 8000 },
+            { month: "May", balance: 5200, limit: 8000 },
+            { month: "Jun", balance: 5800, limit: 10000 },
+            { month: "Jul", balance: 6500, limit: 10000 },
+            { month: "Aug", balance: 7900, limit: 10000 },
+            { month: "Sep", balance: 7400, limit: 10000 },
+            { month: "Oct", balance: 7800, limit: 10000 },
+            { month: "Nov", balance: 8700, limit: 10000 },
+            { month: "Dec", balance: 9200, limit: 10000 },
+        ],
+    },
+    {
+        type: "Personal Loan", lastUpdated: "2026.05.24.", limitLabel: "£15,000", utilisation: 61,
+        data: [
+            { month: "Jan", balance: 14200, limit: 15000 },
+            { month: "Feb", balance: 13900, limit: 15000 },
+            { month: "Mar", balance: 13600, limit: 15000 },
+            { month: "Apr", balance: 13300, limit: 15000 },
+            { month: "May", balance: 13000, limit: 15000 },
+            { month: "Jun", balance: 12600, limit: 15000 },
+            { month: "Jul", balance: 12200, limit: 15000 },
+            { month: "Aug", balance: 11800, limit: 15000 },
+            { month: "Sep", balance: 11400, limit: 15000 },
+            { month: "Oct", balance: 11000, limit: 15000 },
+            { month: "Nov", balance: 10600, limit: 15000 },
+            { month: "Dec", balance: 9200, limit: 15000 },
+        ],
+    },
+    {
+        type: "Overdraft", lastUpdated: "2026.03.10.", limitLabel: "£2,500", utilisation: 38,
+        data: [
+            { month: "Jan", balance: 400,  limit: 2500 },
+            { month: "Feb", balance: 600,  limit: 2500 },
+            { month: "Mar", balance: 950,  limit: 2500 },
+            { month: "Apr", balance: 700,  limit: 2500 },
+            { month: "May", balance: 500,  limit: 2500 },
+            { month: "Jun", balance: 350,  limit: 2500 },
+            { month: "Jul", balance: 800,  limit: 2500 },
+            { month: "Aug", balance: 1100, limit: 2500 },
+            { month: "Sep", balance: 900,  limit: 2500 },
+            { month: "Oct", balance: 750,  limit: 2500 },
+            { month: "Nov", balance: 600,  limit: 2500 },
+            { month: "Dec", balance: 950,  limit: 2500 },
+        ],
+    },
+];
 
 const RULE_OUTCOMES = [
     { rule: "Provenir Underwriting Report", message: "", muted: false },
@@ -2471,6 +2688,36 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 ))}
                                             </div>
                                         </div>
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Wiser Funding Scores ── */}
+                                <InfoCard title="Wiser Funding Scores">
+                                    <div className="flex w-full items-start justify-around py-2">
+                                        {WISER_SCORES.map((s) => (
+                                            <GaugeChart
+                                                key={s.label}
+                                                label={s.label}
+                                                displayValue={s.displayValue}
+                                                value={s.value}
+                                                max={s.max}
+                                                benchmark={s.benchmark}
+                                                benchmarkLabel={`Industry benchmark: ${s.benchmark}`}
+                                                gradientFrom={s.gradientFrom}
+                                                gradientTo={s.gradientTo}
+                                            />
+                                        ))}
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── PSC Credit Utilisation ── */}
+                                <InfoCard title="PSC Credit Utilisation" raw>
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                        {CREDIT_ACCOUNTS.map((account, i) => (
+                                            <div key={i} className={cx("px-5 pt-4", i < CREDIT_ACCOUNTS.length - 1 && "border-b border-secondary")}>
+                                                <CreditLineChart account={account} />
+                                            </div>
+                                        ))}
                                     </div>
                                 </InfoCard>
 
