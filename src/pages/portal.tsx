@@ -2292,11 +2292,11 @@ const WiserFundingChart = () => {
                 <ResponsiveContainer width="100%" height={425}>
                     <RadarChart data={radarData} outerRadius="75%" margin={{ top: 28, right: 20, bottom: 0, left: 48 }}>
                         <PolarGrid gridType="polygon" stroke="#f0e8e2" />
-                        <PolarAngleAxis dataKey="axis" tick={AxisTick as React.ComponentType<object>} />
+                        <PolarAngleAxis dataKey="axis" tick={AxisTick as never} />
                         <PolarRadiusAxis domain={[0, 1]} tick={false} axisLine={false} tickCount={5} />
                         <Radar name="Company"       dataKey="company"  stroke="#594483" strokeWidth={2}   fill="#594483" fillOpacity={0.22} isAnimationActive={false} />
                         <Radar name="Industry avg." dataKey="industry" stroke="#a18fc6" strokeWidth={1.5} strokeDasharray="4 3" fill="#a18fc6" fillOpacity={0}    isAnimationActive={false} />
-                        <RechartsTip content={TooltipContent as React.ComponentType<object>} />
+                        <RechartsTip content={TooltipContent as never} />
                     </RadarChart>
                 </ResponsiveContainer>
                 <div className="flex items-center justify-center gap-1 pb-4 -mt-6">
