@@ -70,7 +70,7 @@ import { ProgressBarBase } from "@/components/base/progress-indicators/progress-
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { cx } from "@/utils/cx";
-import { Area, Cell, Pie, PieChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTip, Line, ComposedChart } from "recharts";
+import { Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTip, Line, ComposedChart, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { NotFound } from "@/pages/not-found";
 import { NoAccess } from "@/pages/no-access";
 import { FeatureRequest } from "@/pages/feature-request";
@@ -2203,73 +2203,130 @@ type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision";
 
 // ─── WiserFundingChart ────────────────────────────────────────────────────────
 
-const PieGauge = ({ s, idx }: { s: (typeof WISER_SCORES)[0]; idx: number }) => {
-    const W = 220, H = 130;
-    const cx = W / 2, cy = H - 8;
-    const iR = 50, oR = 76, midR = (iR + oR) / 2;
-    const gradId = `pg-${idx}`;
+// Each axis has its own domain — Z-Score 0–600, PoD 0–15% (inverted), LGD 0–100% (inverted)
+// Pre-normalise to [0,1] per axis so the polygon area correctly reflects "larger = better"
+const RADAR_AXES = [
+    { key: "Z-Score", cap: 1000, invert: false, scaleLabel: "0 – 1000", unit: ""  },
+    { key: "PoD",     cap: 15,   invert: true,  scaleLabel: "0 – 15%",  unit: "%" },
+    { key: "LGD",     cap: 100,  invert: true,  scaleLabel: "0 – 100%", unit: "%" },
+] as const;
 
-    const vf = Math.min(Math.max(s.value / s.max, 0), 1);
-    const bf = Math.min(Math.max(s.benchmark / s.max, 0), 1);
+const RADAR_COMPANY  = { "Z-Score": 550, "PoD": 2.5, "LGD": 48 } as const;
+const RADAR_INDUSTRY = { "Z-Score": 480, "PoD": 2.6, "LGD": 39 } as const;
 
-    // Ring-sector path for the value fill
-    const pt = (r: number, f: number) => ({
-        x: cx + r * Math.cos(Math.PI * (1 - f)),
-        y: cy - r * Math.sin(Math.PI * (1 - f)),
-    });
-    const oStart = pt(oR, 0), oEnd = pt(oR, vf);
-    const iStart = pt(iR, 0), iEnd = pt(iR, vf);
-    const la = vf >= 0.5 ? 1 : 0;
-    const valuePath = `M${oStart.x},${oStart.y} A${oR},${oR} 0 ${la} 1 ${oEnd.x},${oEnd.y} L${iEnd.x},${iEnd.y} A${iR},${iR} 0 ${la} 0 ${iStart.x},${iStart.y} Z`;
+type RadarAxisKey = (typeof RADAR_AXES)[number]["key"];
 
-    // Needle triangle
-    const needleAngle = Math.PI * (1 - vf);
-    const tip = pt(midR, vf);
-    const perp = needleAngle + Math.PI / 2;
-    const bw = 3.5;
-    const b1 = { x: cx + bw * Math.cos(perp), y: cy - bw * Math.sin(perp) };
-    const b2 = { x: cx - bw * Math.cos(perp), y: cy + bw * Math.sin(perp) };
+function normalise(value: number, cap: number, invert: boolean) {
+    const n = Math.min(Math.max(value / cap, 0), 1);
+    return invert ? 1 - n : n;
+}
 
-    // Benchmark dot
-    const bm = pt(midR, bf);
+interface RadarTickProps {
+    x?: number; y?: number;
+    cx?: number; cy?: number;
+    payload?: { value: string };
+}
+
+const RADAR_RAW_LABELS: Record<RadarAxisKey, (v: number) => string> = {
+    "Z-Score": v => String(v),
+    "PoD":     v => `${v}%`,
+    "LGD":     v => `${v}%`,
+};
+
+const RADAR_FULL_LABELS: Record<RadarAxisKey, string> = {
+    "Z-Score": "SME Z-Score",
+    "PoD":     "Probability of Default",
+    "LGD":     "Loss Given Default",
+};
+
+
+const WiserFundingChart = () => {
+    const radarData = RADAR_AXES.map(ax => ({
+        axis: ax.key,
+        company:  normalise(RADAR_COMPANY[ax.key],  ax.cap, ax.invert),
+        industry: normalise(RADAR_INDUSTRY[ax.key], ax.cap, ax.invert),
+    }));
+
+    const AxisTick = ({ x = 0, y = 0, cx = 0, cy = 0, payload }: RadarTickProps) => {
+        const key = (payload?.value ?? "") as RadarAxisKey;
+        const dx = x - cx;
+        const dy = y - cy;
+        const anchor = Math.abs(dx) < 8 ? "middle" : dx < 0 ? "end" : "start";
+        const isTop = dy < -8;
+        const textY = isTop ? y - 6 : dy > 8 ? y + 14 : y + 4;
+        return (
+            <text x={x} y={textY} textAnchor={anchor} fontSize={12} fontWeight={500} fill="#2d2926">{key}</text>
+        );
+    };
+
+    const TooltipContent = ({ active, payload }: { active?: boolean; payload?: { name: string; payload: { axis: RadarAxisKey } }[] }) => {
+        if (!active || !payload?.length) return null;
+        const axis = payload[0].payload.axis;
+        const fmt = RADAR_RAW_LABELS[axis];
+        const label = RADAR_FULL_LABELS[axis];
+        const ax = RADAR_AXES.find(a => a.key === axis)!;
+        return (
+            <div style={{ background: "white", border: "1px solid #f0e8e2", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+                <p style={{ color: "#776c65", fontWeight: 600, marginBottom: 6 }}>{label}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#594483" }} />
+                        <span style={{ color: "#776c65" }}>Company</span>
+                        <span style={{ marginLeft: "auto", fontWeight: 600, color: "#1b1413", paddingLeft: 16 }}>{fmt(RADAR_COMPANY[axis])}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#a18fc6" }} />
+                        <span style={{ color: "#776c65" }}>Industry avg.</span>
+                        <span style={{ marginLeft: "auto", fontWeight: 600, color: "#1b1413", paddingLeft: 16 }}>{fmt(RADAR_INDUSTRY[axis])}</span>
+                    </div>
+                    <p style={{ color: "#9e9490", marginTop: 2 }}>{ax.invert ? "lower = better" : "higher = better"} · {ax.scaleLabel}</p>
+                </div>
+            </div>
+        );
+    };
 
     return (
-        <div className="flex flex-col items-center gap-1">
-            <p className="text-sm font-medium text-secondary text-center whitespace-nowrap">{s.label}</p>
-            <PieChart width={W} height={H}>
-                <defs>
-                    <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={cx - oR} y1={0} x2={cx + oR} y2={0}>
-                        <stop offset="0%" stopColor={s.gradientFrom} />
-                        <stop offset="100%" stopColor={s.gradientTo} />
-                    </linearGradient>
-                </defs>
-                {/* Background track */}
-                <Pie data={[{ value: 1 }]} cx={cx} cy={cy} startAngle={180} endAngle={0} innerRadius={iR} outerRadius={oR} dataKey="value" stroke="none" isAnimationActive={false}>
-                    <Cell fill="#f0e8e2" />
-                </Pie>
-                {/* Gradient value fill */}
-                {vf > 0.005 && <path d={valuePath} fill={`url(#${gradId})`} />}
-                {/* Needle */}
-                <path d={`M${b1.x},${b1.y} L${b2.x},${b2.y} L${tip.x},${tip.y} Z`} fill="#2d2926" />
-                <circle cx={cx} cy={cy} r={5} fill="#2d2926" />
-                {/* Benchmark dot */}
-                <circle cx={bm.x} cy={bm.y} r={5.5} fill="white" stroke="#9e9490" strokeWidth={1.5} />
-                {/* Value label */}
-                <text x={cx} y={cy - 18} textAnchor="middle" fontSize={18} fontWeight={600} fill="#1b1413">{s.displayValue}</text>
-            </PieChart>
-            <div className="flex items-center gap-1.5 -mt-1">
-                <span className="size-[10px] shrink-0 rounded-full border border-[#9e9490] bg-white" />
-                <span className="text-xs text-secondary">{s.benchmarkLabel}</span>
+        <div className="flex min-h-[425px] overflow-visible">
+            {/* Chart — 2/3 width */}
+            <div className="flex-[2] min-w-0 flex flex-col overflow-visible">
+                <ResponsiveContainer width="100%" height={425}>
+                    <RadarChart data={radarData} outerRadius="75%" margin={{ top: 28, right: 20, bottom: 0, left: 48 }}>
+                        <PolarGrid gridType="polygon" stroke="#f0e8e2" />
+                        <PolarAngleAxis dataKey="axis" tick={AxisTick as React.ComponentType<object>} />
+                        <PolarRadiusAxis domain={[0, 1]} tick={false} axisLine={false} tickCount={5} />
+                        <Radar name="Company"       dataKey="company"  stroke="#594483" strokeWidth={2}   fill="#594483" fillOpacity={0.22} isAnimationActive={false} />
+                        <Radar name="Industry avg." dataKey="industry" stroke="#a18fc6" strokeWidth={1.5} strokeDasharray="4 3" fill="#a18fc6" fillOpacity={0}    isAnimationActive={false} />
+                        <RechartsTip content={TooltipContent as React.ComponentType<object>} />
+                    </RadarChart>
+                </ResponsiveContainer>
+                <div className="flex items-center justify-center gap-1 pb-4 -mt-6">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polygon points="6,1 11,11 1,11" fill="#bdafda" /></svg>
+                    <span className="text-xs text-tertiary">The bigger the area the better</span>
+                </div>
+            </div>
+
+            {/* Info panel — 1/3 width */}
+            <div className="flex flex-[1] flex-col justify-center gap-5 py-6 pr-6 pl-5">
+                {RADAR_AXES.map(ax => (
+                    <div key={ax.key} className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-primary">{RADAR_FULL_LABELS[ax.key]}</span>
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5">
+                                <span className="inline-block h-[2px] w-4 rounded bg-[#594483]" />
+                                <span className="text-base font-semibold text-primary">{RADAR_RAW_LABELS[ax.key](RADAR_COMPANY[ax.key])}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <span className="inline-block h-[2px] w-4 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg,#a18fc6 0,#a18fc6 4px,transparent 4px,transparent 7px)" }} />
+                                <span className="text-base font-semibold text-[#a18fc6]">{RADAR_RAW_LABELS[ax.key](RADAR_INDUSTRY[ax.key])}</span>
+                            </div>
+                        </div>
+                        <span className="text-xs text-tertiary">{ax.scaleLabel}</span>
+                    </div>
+                ))}
             </div>
         </div>
     );
 };
-
-const WiserFundingChart = () => (
-    <div className="flex items-start justify-around py-4 px-4">
-        {WISER_SCORES.map((s, i) => <PieGauge key={s.label} s={s} idx={i} />)}
-    </div>
-);
 
 // ─── CreditLineChart ───────────────────────────────────────────────────────────
 
@@ -2304,7 +2361,7 @@ const CreditLineChart = ({ account }: { account: CreditAccount }) => {
                     </defs>
                     <CartesianGrid vertical={false} stroke="#f0e8e2" strokeWidth={1} />
                     <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#776c65" }} axisLine={false} tickLine={false} dy={6} />
-                    <YAxis tickFormatter={formatY} tick={{ fontSize: 11, fill: "#776c65" }} axisLine={false} tickLine={false} width={36} tickCount={4} />
+                    <YAxis tickFormatter={formatY} tick={{ fontSize: 11, fill: "#776c65" }} axisLine={false} tickLine={false} width={52} tickCount={4} />
                     <Area type="monotone" dataKey="balance" stroke="#594483" strokeWidth={2} fill={`url(#area-${id})`} dot={false} activeDot={{ r: 4, fill: "#594483" }} />
                     <Line type="monotone" dataKey="limit" stroke="#a08cca" strokeWidth={1.5} strokeDasharray="4 3" dot={false} activeDot={false} />
                     <RechartsTip
@@ -2315,7 +2372,7 @@ const CreditLineChart = ({ account }: { account: CreditAccount }) => {
                 </ComposedChart>
             </ResponsiveContainer>
             {/* Metadata row */}
-            <div className="flex gap-3 pt-4 px-1">
+            <div className="flex gap-3 pt-4 pl-[52px] pr-1">
                 {[
                     { label: "Type",         value: account.type,         cls: "text-secondary" },
                     { label: "Last updated", value: account.lastUpdated,  cls: "text-secondary" },
@@ -2334,11 +2391,6 @@ const CreditLineChart = ({ account }: { account: CreditAccount }) => {
 
 // ─── Overview tab static mock data ────────────────────────────────────────────
 
-const WISER_SCORES = [
-    { label: "SME Z-Score",            displayValue: "301",    value: 301,  max: 500, benchmark: 326, benchmarkLabel: "Industry benchmark: 326",   gradientFrom: "#ef4444", gradientTo: "#f97316" },
-    { label: "Probability of Default", displayValue: "2.26%",  value: 2.26, max: 20,  benchmark: 3.5, benchmarkLabel: "Industry benchmark: 3.5",   gradientFrom: "#16a34a", gradientTo: "#16a34a" },
-    { label: "Loss Give Default",      displayValue: "82%",    value: 82,   max: 100, benchmark: 82,  benchmarkLabel: "Industry benchmark: 82%",   gradientFrom: "#ef4444", gradientTo: "#f97316" },
-];
 
 const CREDIT_ACCOUNTS: CreditAccount[] = [
     {
@@ -2447,6 +2499,57 @@ const CAIS_TEXT: Record<"success" | "warning" | "gray" | "error", string> = {
     gray: "text-tertiary",
     error: "text-error-primary",
 };
+
+const PSC_CONTACTS = [
+    {
+        name: "Mr. Alex Buck",
+        isApplicant: true,
+        email: "alexb@businesscompany.com",
+        phone: "07723179931",
+        dob: "24-05-1995",
+        shareholdings: "25%",
+        aml: "Pending",
+        linkedCompanies: "2 Current – 3 Past",
+        currentCompanies: [
+            { name: "Page and Wick LTD",   dates: "2023.03.23. – now" },
+            { name: "Wicker Rick Limited", dates: "2022.02.12. – now" },
+        ],
+        pastCompanies: [
+            { name: "BigBiz Limited",         dates: "2019.01.01. – 2022.05.01." },
+            { name: "Big Business LTD",       dates: "2018.07.15. – 2021.11.01." },
+            { name: "Moneymaker.com limited", dates: "2003.01.01 – 2003.12.04."  },
+        ],
+    },
+    {
+        name: "Ms. Jamie Lee",
+        isApplicant: false,
+        email: "jamielees@examplemail.com",
+        phone: "07894561234",
+        dob: "15-11-1988",
+        shareholdings: "25",
+        aml: "Passed",
+        linkedCompanies: "2 Current – 0 Past",
+        currentCompanies: [
+            { name: "Page and Wick LTD",   dates: "2023.03.23. – now" },
+            { name: "Wicker Rick Limited", dates: "2022.02.12. – now" },
+        ],
+        pastCompanies: [],
+    },
+    {
+        name: "Dr. Samira Khan",
+        isApplicant: false,
+        email: "s.khan@samplemail.net",
+        phone: "07987654321",
+        dob: "30-07-1990",
+        shareholdings: "50%",
+        aml: "Pending",
+        linkedCompanies: "1 Current – 0 Past",
+        currentCompanies: [
+            { name: "Page and Wick LTD", dates: "2023.03.23. – now" },
+        ],
+        pastCompanies: [],
+    },
+];
 
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -2667,8 +2770,25 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 </InfoCard>
 
                                 {/* ── Wiser Funding Scores ── */}
-                                <InfoCard title="Wiser Funding Scores" raw>
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                <InfoCard
+                                    title="Wiser Funding Scores"
+                                    badge={
+                                        <div className="flex items-center gap-2 rounded-sm border border-secondary px-1.5 py-0.5 shadow-xs">
+                                            <div className="flex items-center gap-1">
+                                                <div className="h-[4px] w-[12px] rounded-full bg-[#594483]" />
+                                                <span className="text-xs text-tertiary">Company</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <div className="flex gap-[2px]">
+                                                    {[0,1,2].map(i => <span key={i} className="size-[4px] shrink-0 rounded-full bg-[#a18fc6]" />)}
+                                                </div>
+                                                <span className="text-xs text-tertiary">Industry Average</span>
+                                            </div>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div className="overflow-visible rounded-xl border border-secondary bg-primary">
                                         <WiserFundingChart />
                                     </div>
                                 </InfoCard>
@@ -2692,18 +2812,18 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     }
                                     raw
                                 >
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary py-4">
                                         {CREDIT_ACCOUNTS.map((account, i) => (
-                                            <div key={i} className={cx("px-5 pt-4", i < CREDIT_ACCOUNTS.length - 1 && "border-b border-secondary")}>
+                                            <div key={i} className={cx("px-5 pt-8", i < CREDIT_ACCOUNTS.length - 1 && "border-b border-secondary pb-6")}>
                                                 <CreditLineChart account={account} />
                                             </div>
                                         ))}
                                     </div>
                                 </InfoCard>
 
-                                {/* ── Contact Information ── */}
+                                {/* ── PSC Information ── */}
                                 <InfoCard
-                                    title="Contact Information"
+                                    title="PSC Information"
                                     badge={
                                         <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
                                             <span className="text-center text-xs font-medium text-secondary">3</span>
@@ -2711,40 +2831,52 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     }
                                     raw
                                 >
-                                    <div className="flex flex-col gap-3 rounded-xl border border-secondary bg-primary px-5 pb-3 pt-5">
-                                        {/* Contact 1 — Applicant */}
-                                        <div className="flex flex-wrap items-start gap-3 border-b border-secondary pb-3 px-1">
-                                            <div className="flex flex-col w-[calc(50%-6px)]">
-                                                <span className="text-sm text-tertiary">Contact Name</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-base font-semibold text-secondary">{lead.applicantName}</span>
-                                                    <Badge type="pill-color" color="brand" size="sm">Applicant</Badge>
+                                    <div className="flex flex-col rounded-xl border border-secondary bg-primary px-5">
+                                        {PSC_CONTACTS.map((contact, i) => (
+                                            <div key={contact.name} className={cx("flex flex-col gap-3 py-5", i > 0 && "border-t border-secondary")}>
+                                                {/* Contact Name + Email */}
+                                                <div className="flex flex-wrap gap-3">
+                                                    <div className="flex flex-col w-[calc(50%-6px)]">
+                                                        <span className="text-sm text-tertiary">Contact Name</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-base font-semibold text-secondary">{contact.name}</span>
+                                                            {contact.isApplicant && <Badge type="pill-color" color="brand" size="sm">Applicant</Badge>}
+                                                        </div>
+                                                    </div>
+                                                    <SummaryField label="Email"                       value={contact.email}         className="w-[calc(50%-6px)]" />
+                                                    <SummaryField label="Phone"                       value={contact.phone}         className="w-[calc(50%-6px)]" />
+                                                    <SummaryField label="Date of Birth"               value={contact.dob}           className="w-[calc(50%-6px)]" />
+                                                    <SummaryField label="Shareholdings"               value={contact.shareholdings} className="w-[calc(50%-6px)]" />
+                                                    <SummaryField label="Anti Money Laundering Check" value={contact.aml}           className="w-[calc(50%-6px)]" />
                                                 </div>
+                                                {/* Linked Companies */}
+                                                <SummaryField label="Linked Companies" value={contact.linkedCompanies} />
+                                                {/* Current Companies */}
+                                                {contact.currentCompanies.length > 0 && (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-sm text-tertiary">Current Companies</span>
+                                                        {contact.currentCompanies.map(c => (
+                                                            <div key={c.name} className="flex items-baseline justify-between">
+                                                                <span className="text-base font-semibold text-secondary">{c.name}</span>
+                                                                <span className="text-sm text-tertiary">{c.dates}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {/* Past Companies */}
+                                                {contact.pastCompanies.length > 0 && (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-sm text-tertiary">Past Companies</span>
+                                                        {contact.pastCompanies.map(c => (
+                                                            <div key={c.name} className="flex items-baseline justify-between">
+                                                                <span className="text-base font-semibold text-secondary">{c.name}</span>
+                                                                <span className="text-sm text-tertiary">{c.dates}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <SummaryField label="Email"                       value={lead.email}     className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Phone"                       value={lead.telephone} className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Date of Birth"               value="24-05-1995"     className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Shareholdings"               value="25%"            className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Anti Money Laundering Check" value="Pending"        className="w-[calc(50%-6px)]" />
-                                        </div>
-                                        {/* Contact 2 */}
-                                        <div className="flex flex-wrap items-start gap-3 border-b border-secondary pb-3 px-1">
-                                            <SummaryField label="Contact Name"                value="Ms. Jamie Lee"              className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Email"                       value="jamielees@examplemail.com"   className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Phone"                       value="07894561234"                 className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Date of Birth"               value="15-11-1988"                  className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Shareholdings"               value="25%"                         className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Anti Money Laundering Check" value="Passed"                      className="w-[calc(50%-6px)]" />
-                                        </div>
-                                        {/* Contact 3 — no bottom border */}
-                                        <div className="flex flex-wrap items-start gap-3 px-1">
-                                            <SummaryField label="Contact Name"                value="Dr. Samira Khan"             className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Email"                       value="s.khan@samplemail.net"       className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Phone"                       value="07987654321"                 className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Date of Birth"               value="30-07-1990"                  className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Shareholdings"               value="50%"                         className="w-[calc(50%-6px)]" />
-                                            <SummaryField label="Anti Money Laundering Check" value="Pending"                     className="w-[calc(50%-6px)]" />
-                                        </div>
+                                        ))}
                                     </div>
                                 </InfoCard>
 
