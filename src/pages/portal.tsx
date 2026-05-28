@@ -3090,7 +3090,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                         <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
                                                     {row.history.map((code, ci) => {
-                                                        const isLast = ci === row.history.length - 1;
+                                                        const isCurrentMonth = ci === row.history.length - 1 && row.offset + row.history.length === 12;
                                                         const s = ACTIVE_PAYMENTS_STATUS[code] ?? ACTIVE_PAYMENTS_STATUS["0"];
                                                         return (
                                                             <div
@@ -3099,7 +3099,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                                     "flex size-6 shrink-0 items-center justify-center rounded-[4px] text-[10px] font-semibold",
                                                                     s.bg,
                                                                     s.text,
-                                                                    isLast && s.border,
+                                                                    isCurrentMonth && s.border,
                                                                 )}
                                                             >
                                                                 {code}
