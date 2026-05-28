@@ -3053,7 +3053,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             <div className="flex h-11 w-52 shrink-0 items-center pl-5 pr-4">
                                                 <span className="text-xs font-medium text-quaternary">Account Type</span>
                                             </div>
-                                            <div className="flex h-11 min-w-0 flex-1 items-center gap-1 overflow-hidden px-3">
+                                            <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
                                                 <span className="text-xs font-medium text-quaternary">Status History (12m)</span>
                                                 <div className="group relative">
                                                     <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
@@ -3084,8 +3084,11 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 <div className="flex h-12 w-52 shrink-0 items-center pl-5 pr-4">
                                                     <span className="truncate text-sm text-primary">{row.accountType}</span>
                                                 </div>
-                                                {/* Status history — scrollable */}
-                                                <div className="flex h-12 min-w-0 flex-1 items-center gap-1 overflow-x-auto px-3 py-2 scrollbar-thin">
+                                                {/* Status history — fixed 12-slot grid, right-aligned */}
+                                                <div className="flex h-12 w-[356px] shrink-0 items-center gap-1 px-3 py-2">
+                                                    {Array.from({ length: 12 - row.history.length }).map((_, ei) => (
+                                                        <div key={`e${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    ))}
                                                     {row.history.map((code, ci) => {
                                                         const isLast = ci === row.history.length - 1;
                                                         const s = ACTIVE_PAYMENTS_STATUS[code] ?? ACTIVE_PAYMENTS_STATUS["0"];
