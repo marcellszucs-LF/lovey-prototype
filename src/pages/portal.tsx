@@ -3062,15 +3062,14 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             </div>
                                             <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
                                                 <span className="text-xs font-medium text-quaternary">Status History (12m)</span>
-                                                <div className="group relative">
-                                                    <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
-                                                        <circle cx="8" cy="8" r="6.5" />
-                                                        <path d="M8 7v4M8 5.5h.01" strokeLinecap="round" />
-                                                    </svg>
-                                                    <div className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-primary_alt px-2 py-1 text-xs text-secondary opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
-                                                        Each box is a month in ascending order
-                                                    </div>
-                                                </div>
+                                                <Tooltip title="Each box is a month in ascending order" placement="bottom">
+                                                    <TooltipTrigger>
+                                                        <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
+                                                            <circle cx="8" cy="8" r="6.5" />
+                                                            <path d="M8 7v4M8 5.5h.01" strokeLinecap="round" />
+                                                        </svg>
+                                                    </TooltipTrigger>
+                                                </Tooltip>
                                             </div>
                                             <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
                                                 <span className="text-xs font-medium text-quaternary">Payment</span>
@@ -3152,15 +3151,14 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             </div>
                                             <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
                                                 <span className="text-xs font-medium text-quaternary">Status History (12m)</span>
-                                                <div className="group relative">
-                                                    <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
-                                                        <circle cx="8" cy="8" r="6.5" />
-                                                        <path d="M8 7v4M8 5.5h.01" strokeLinecap="round" />
-                                                    </svg>
-                                                    <div className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-primary_alt px-2 py-1 text-xs text-secondary opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
-                                                        Each box is a month in ascending order
-                                                    </div>
-                                                </div>
+                                                <Tooltip title="Each box is a month in ascending order" placement="bottom">
+                                                    <TooltipTrigger>
+                                                        <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
+                                                            <circle cx="8" cy="8" r="6.5" />
+                                                            <path d="M8 7v4M8 5.5h.01" strokeLinecap="round" />
+                                                        </svg>
+                                                    </TooltipTrigger>
+                                                </Tooltip>
                                             </div>
                                             <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
                                                 <span className="text-xs font-medium text-quaternary">Payment</span>
