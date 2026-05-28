@@ -1595,9 +1595,12 @@ const TableView = ({ leads, isRefreshing }: { leads: Array<Lead & { stage: LeadS
 
 // ─── Activity mock data ───────────────────────────────────────────────────────
 
+type ActivityLogCategory = "all" | "notes" | "calls" | "emails" | "automated" | "playbook";
+
 interface ActivityLogEntry {
     id: string;
     type: "event" | "comment";
+    category: Exclude<ActivityLogCategory, "all">;
     text: string;
     author: string;
     source?: string;
@@ -1605,12 +1608,30 @@ interface ActivityLogEntry {
     time: string;
 }
 
+const ACTIVITY_LOG_FILTER_OPTIONS: ({ value: ActivityLogCategory; label: string } | "divider")[] = [
+    { value: "all",       label: "All Activity" },
+    "divider",
+    { value: "notes",     label: "Notes" },
+    { value: "calls",     label: "Calls" },
+    { value: "emails",    label: "Emails" },
+    { value: "automated", label: "Automated Updates" },
+    { value: "playbook",  label: "Playbook" },
+];
+const ACTIVITY_LOG_FILTER_LABELS: Record<ActivityLogCategory, string> = {
+    all:       "All Activity",
+    notes:     "Notes",
+    calls:     "Calls",
+    emails:    "Emails",
+    automated: "Automated Updates",
+    playbook:  "Playbook",
+};
+
 const MOCK_ACTIVITY: ActivityLogEntry[] = [
-    { id: "a1", type: "event",   text: "Application submitted",       author: "System",      source: "Website form", date: "20 March", time: "11:23" },
-    { id: "a2", type: "event",   text: "Assigned to Jake Torres",     author: "Sarah Chen",                          date: "20 March", time: "11:59" },
-    { id: "a3", type: "comment", text: "Requested latest bank statements. Applicant confirmed they will send over by end of day.", author: "Jake Torres", date: "20 March", time: "12:03" },
-    { id: "a4", type: "event",   text: "Moved to New", author: "Jake Torres",                       date: "21 March", time: "09:14" },
-    { id: "a5", type: "comment", text: "Initial eligibility check passed. Awaiting supporting docs before progressing.", author: "Jake Torres", date: "21 March", time: "09:22" },
+    { id: "a1", type: "event",   category: "automated", text: "Application submitted",       author: "System",      source: "Website form", date: "20 March", time: "11:23" },
+    { id: "a2", type: "event",   category: "automated", text: "Assigned to Jake Torres",     author: "Sarah Chen",                          date: "20 March", time: "11:59" },
+    { id: "a3", type: "comment", category: "notes",     text: "Requested latest bank statements. Applicant confirmed they will send over by end of day.", author: "Jake Torres", date: "20 March", time: "12:03" },
+    { id: "a4", type: "event",   category: "automated", text: "Moved to New",                author: "Jake Torres",                         date: "21 March", time: "09:14" },
+    { id: "a5", type: "comment", category: "notes",     text: "Initial eligibility check passed. Awaiting supporting docs before progressing.", author: "Jake Torres", date: "21 March", time: "09:22" },
 ];
 
 // ─── Copy toast ───────────────────────────────────────────────────────────────
@@ -1672,7 +1693,11 @@ const LeadDetailHeader = ({ lead, onBack }: { lead: Lead & { stage: LeadStage };
 const ActivityLog = ({ entries: initialEntries }: { entries: ActivityLogEntry[] }) => {
     const [entries, setEntries] = useState(initialEntries);
     const [note, setNote] = useState("");
+    const [filter, setFilter] = useState<ActivityLogCategory>("all");
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     const timelineRef = useRef<HTMLDivElement>(null);
+
+    const filteredEntries = filter === "all" ? entries : entries.filter(e => e.category === filter);
 
     const handleAddNote = () => {
         if (!note.trim()) return;
@@ -1680,6 +1705,7 @@ const ActivityLog = ({ entries: initialEntries }: { entries: ActivityLogEntry[] 
         const newEntry: ActivityLogEntry = {
             id: `note-${Date.now()}`,
             type: "comment",
+            category: "notes",
             text: note.trim(),
             author: "Jake Torres",
             date: now.toLocaleDateString("en-GB", { day: "numeric", month: "long" }),
@@ -1695,62 +1721,101 @@ const ActivityLog = ({ entries: initialEntries }: { entries: ActivityLogEntry[] 
     };
 
     return (
-        <PanelCard title="Activity Log" className="h-full" innerClassName="flex flex-1 flex-col justify-between p-2 gap-0 min-h-0">
-            {/* Timeline */}
-            <div ref={timelineRef} className="scrollbar-hide flex-1 overflow-y-auto px-2 py-2">
-                {entries.map((entry, i) => {
-                    const isLast = i === entries.length - 1;
-                    return (
-                        <div key={entry.id} className="flex items-start gap-3">
-                            {/* Step icon + connector */}
-                            <div className="flex shrink-0 flex-col items-center gap-1 self-stretch pb-1">
-                                <div className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-[1.5px] border-secondary bg-secondary_subtle">
-                                    {entry.type === "comment"
-                                        ? <MessageSquare01 className="size-3 text-fg-quaternary" />
-                                        : <span className="size-2 rounded-full bg-fg-quaternary" />
-                                    }
-                                </div>
-                                {!isLast && <div className="w-0.5 flex-1 rounded-sm bg-secondary" />}
-                            </div>
-
-                            {/* Content */}
-                            <div className={cx("flex flex-1 flex-col", !isLast && "pb-6")}>
-                                <p className="text-sm font-semibold text-secondary">{entry.text}</p>
-                                <div className="mt-0.5 flex items-center gap-1 text-sm text-quaternary">
-                                    {entry.source && <><span>{entry.source}</span><span className="size-1 rounded-full bg-fg-quaternary" /></>}
-                                    <span>{entry.author}</span>
-                                    <span className="size-1 rounded-full bg-fg-quaternary" />
-                                    <span>{entry.date}</span>
-                                    <span className="size-1 rounded-full bg-fg-quaternary" />
-                                    <span>{entry.time}</span>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Notes input */}
-            <div className="flex shrink-0 flex-col gap-1.5 px-2 pb-2">
-                <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAddNote(); }}
-                    placeholder="Add your notes"
-                    rows={4}
-                    className="w-full resize-none rounded-lg border border-primary bg-primary px-3.5 py-3 text-sm text-primary shadow-xs placeholder:text-quaternary focus:ring-2 focus:ring-inset focus:ring-brand focus:outline-none"
-                />
+        <div className="flex h-full w-full flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
+            {/* Dropdown heading */}
+            <div className="relative shrink-0">
                 <button
                     type="button"
-                    disabled={!note.trim()}
-                    onClick={handleAddNote}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-solid bg-primary px-3.5 py-2.5 text-sm font-semibold text-brand-secondary shadow-xs transition hover:bg-secondary_subtle disabled:cursor-not-allowed disabled:border-secondary disabled:text-disabled"
+                    onClick={() => setDropdownOpen(o => !o)}
+                    className="flex h-11 w-full items-center justify-between pb-2 pl-5 pr-3 pt-3"
                 >
-                    <MessageSquare01 className="size-5" />
-                    Add note
+                    <span className="text-sm font-semibold text-primary">{ACTIVITY_LOG_FILTER_LABELS[filter]}</span>
+                    <ChevronDown className={cx("size-5 text-fg-quaternary transition-transform duration-150", dropdownOpen && "rotate-180")} />
                 </button>
+
+                {dropdownOpen && (
+                    <>
+                        <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                        <div className="absolute top-full left-3 z-20 mt-1 min-w-[200px] overflow-hidden rounded-lg border border-secondary bg-primary shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+                            <div className="py-1">
+                                {ACTIVITY_LOG_FILTER_OPTIONS.map((opt, i) =>
+                                    opt === "divider" ? (
+                                        <div key={i} className="my-1 border-t border-secondary" />
+                                    ) : (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => { setFilter(opt.value); setDropdownOpen(false); }}
+                                            className={cx(
+                                                "mx-1.5 flex w-[calc(100%-12px)] items-center rounded-md px-2.5 py-2 text-left text-sm font-semibold transition-colors",
+                                                filter === opt.value ? "bg-secondary_subtle text-primary" : "text-secondary hover:bg-secondary_subtle",
+                                            )}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    )
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
-        </PanelCard>
+
+            {/* Inner card */}
+            <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-secondary bg-primary p-2 gap-0 min-h-0">
+                {/* Timeline */}
+                <div ref={timelineRef} className="scrollbar-hide flex-1 overflow-y-auto px-2 py-2">
+                    {filteredEntries.map((entry, i) => {
+                        const isLast = i === filteredEntries.length - 1;
+                        return (
+                            <div key={entry.id} className="flex items-start gap-3">
+                                <div className="flex shrink-0 flex-col items-center gap-1 self-stretch pb-1">
+                                    <div className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-[1.5px] border-secondary bg-secondary_subtle">
+                                        {entry.type === "comment"
+                                            ? <MessageSquare01 className="size-3 text-fg-quaternary" />
+                                            : <span className="size-2 rounded-full bg-fg-quaternary" />
+                                        }
+                                    </div>
+                                    {!isLast && <div className="w-0.5 flex-1 rounded-sm bg-secondary" />}
+                                </div>
+                                <div className={cx("flex flex-1 flex-col", !isLast && "pb-6")}>
+                                    <p className="text-sm font-semibold text-secondary">{entry.text}</p>
+                                    <div className="mt-0.5 flex items-center gap-1 text-sm text-quaternary">
+                                        {entry.source && <><span>{entry.source}</span><span className="size-1 rounded-full bg-fg-quaternary" /></>}
+                                        <span>{entry.author}</span>
+                                        <span className="size-1 rounded-full bg-fg-quaternary" />
+                                        <span>{entry.date}</span>
+                                        <span className="size-1 rounded-full bg-fg-quaternary" />
+                                        <span>{entry.time}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Notes input */}
+                <div className="flex shrink-0 flex-col gap-1.5 px-2 pb-2">
+                    <textarea
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAddNote(); }}
+                        placeholder="Add your notes"
+                        rows={4}
+                        className="w-full resize-none rounded-lg border border-primary bg-primary px-3.5 py-3 text-sm text-primary shadow-xs placeholder:text-quaternary focus:ring-2 focus:ring-inset focus:ring-brand focus:outline-none"
+                    />
+                    <button
+                        type="button"
+                        disabled={!note.trim()}
+                        onClick={handleAddNote}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-solid bg-primary px-3.5 py-2.5 text-sm font-semibold text-brand-secondary shadow-xs transition hover:bg-secondary_subtle disabled:cursor-not-allowed disabled:border-secondary disabled:text-disabled"
+                    >
+                        <MessageSquare01 className="size-5" />
+                        Add note
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 };
 
