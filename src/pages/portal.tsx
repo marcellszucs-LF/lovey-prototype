@@ -4399,6 +4399,14 @@ const LeadOverlay = ({
         ? relatedTasks.some(t => t.originalId === currentTaskId && t.completed)
         : false;
 
+    // Reset related tasks when navigating to a different lead
+    useEffect(() => {
+        if (!initialRelatedTasks) return;
+        setRelatedTasks(initialRelatedTasks.map(t => ({ ...t, originalId: t.originalId ?? String(t.id) })));
+    // lead.id is the correct dependency — initialRelatedTasks is recreated every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lead.id]);
+
     const onRelatedTasksChangeRef = useRef(onRelatedTasksChange);
     useEffect(() => { onRelatedTasksChangeRef.current = onRelatedTasksChange; }, [onRelatedTasksChange]);
     useEffect(() => { onRelatedTasksChangeRef.current?.(relatedTasks); }, [relatedTasks]);
