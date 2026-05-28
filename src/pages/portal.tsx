@@ -3072,7 +3072,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             </div>
                                             <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
                                                 <span className="text-xs font-medium text-quaternary">Status History (12m)</span>
-                                                <Tooltip title="Each box is a month in ascending order" placement="bottom">
+                                                <Tooltip title="Each box is a month, left is most recent" placement="bottom">
                                                     <TooltipTrigger>
                                                         <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
                                                             <circle cx="8" cy="8" r="6.5" />
@@ -3105,11 +3105,11 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 </div>
                                                 {/* Status history — fixed 12-slot grid */}
                                                 <div className="flex h-12 w-[356px] shrink-0 items-center gap-1 px-3 py-2">
-                                                    {Array.from({ length: row.offset }).map((_, ei) => (
-                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
+                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
-                                                    {row.history.map((code, ci) => {
-                                                        const isCurrentMonth = ci === row.history.length - 1 && row.offset + row.history.length === 12;
+                                                    {[...row.history].reverse().map((code, ci) => {
+                                                        const isCurrentMonth = ci === 0 && row.offset + row.history.length === 12;
                                                         const s = ACTIVE_PAYMENTS_STATUS[code] ?? ACTIVE_PAYMENTS_STATUS["0"];
                                                         return (
                                                             <div
@@ -3125,8 +3125,8 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                             </div>
                                                         );
                                                     })}
-                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
-                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    {Array.from({ length: row.offset }).map((_, ei) => (
+                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
                                                 </div>
                                                 <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
@@ -3167,7 +3167,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             </div>
                                             <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
                                                 <span className="text-xs font-medium text-quaternary">Status History (12m)</span>
-                                                <Tooltip title="Each box is a month in ascending order" placement="bottom">
+                                                <Tooltip title="Each box is a month, left is most recent" placement="bottom">
                                                     <TooltipTrigger>
                                                         <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
                                                             <circle cx="8" cy="8" r="6.5" />
@@ -3199,11 +3199,11 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                     <span className="truncate text-sm text-primary">{row.accountType}</span>
                                                 </div>
                                                 <div className="flex h-12 w-[356px] shrink-0 items-center gap-1 px-3 py-2">
-                                                    {Array.from({ length: row.offset }).map((_, ei) => (
-                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
+                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
-                                                    {row.history.map((code, ci) => {
-                                                        const isCurrentMonth = ci === row.history.length - 1 && row.offset + row.history.length === 12;
+                                                    {[...row.history].reverse().map((code, ci) => {
+                                                        const isCurrentMonth = ci === 0 && row.offset + row.history.length === 12;
                                                         const s = ACTIVE_PAYMENTS_STATUS[code] ?? ACTIVE_PAYMENTS_STATUS["0"];
                                                         return (
                                                             <div
@@ -3219,8 +3219,8 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                             </div>
                                                         );
                                                     })}
-                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
-                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    {Array.from({ length: row.offset }).map((_, ei) => (
+                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
                                                 </div>
                                                 <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
@@ -3261,7 +3261,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             </div>
                                             <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
                                                 <span className="text-xs font-medium text-quaternary">Account Status (12m)</span>
-                                                <Tooltip title="Each box is a month in ascending order" placement="bottom">
+                                                <Tooltip title="Each box is a month, left is most recent" placement="bottom">
                                                     <TooltipTrigger>
                                                         <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
                                                             <circle cx="8" cy="8" r="6.5" />
@@ -3297,11 +3297,11 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 </div>
                                                 {/* Account Status (12m) — fixed 12-slot grid */}
                                                 <div className="flex h-12 w-[356px] shrink-0 items-center gap-1 px-3 py-2">
-                                                    {Array.from({ length: row.offset }).map((_, ei) => (
-                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
+                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
-                                                    {row.history.map((code, ci) => {
-                                                        const isCurrentMonth = ci === row.history.length - 1 && row.offset + row.history.length === 12;
+                                                    {[...row.history].reverse().map((code, ci) => {
+                                                        const isCurrentMonth = ci === 0 && row.offset + row.history.length === 12;
                                                         const s = ACTIVE_PAYMENTS_STATUS[code] ?? ACTIVE_PAYMENTS_STATUS["0"];
                                                         return (
                                                             <div
@@ -3317,8 +3317,8 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                             </div>
                                                         );
                                                     })}
-                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
-                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    {Array.from({ length: row.offset }).map((_, ei) => (
+                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
                                                 </div>
                                                 <div className="flex min-h-12 w-36 shrink-0 items-center justify-end px-4 py-3">
