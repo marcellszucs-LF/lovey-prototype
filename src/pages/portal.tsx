@@ -1325,17 +1325,6 @@ const ApplicationHeader = ({
             <div ref={searchWrapperRef} className="ml-auto">
                 <Input size="sm" placeholder="Search" icon={SearchLg} shortcut="/" wrapperClassName="w-64" value={searchQuery} onChange={onSearchChange} />
             </div>
-            {/* Hide empty columns toggle — board view only */}
-            {view === "board" && onToggleHideEmpty && (
-                <button
-                    type="button"
-                    onClick={onToggleHideEmpty}
-                    className="flex items-center gap-1.5 text-sm font-medium text-secondary transition-colors hover:text-primary"
-                >
-                    {hideEmpty ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
-                    {hideEmpty ? "Show empty columns" : "Hide empty columns"}
-                </button>
-            )}
             {/* View toggle */}
             <div className="flex h-11 items-center rounded-lg border border-secondary bg-primary p-1 shadow-xs">
                 <button
@@ -1377,18 +1366,31 @@ const ApplicationHeader = ({
                     <AssigneeFilter value={filters.assignees} onChange={filters.setAssignees} />
                 </div>
 
-                <div className={cx("relative", filters.activeCount === 0 && "invisible pointer-events-none")}>
-                    <button
-                        type="button"
-                        onClick={filters.onReset}
-                        className="flex cursor-pointer items-center justify-center rounded-lg border border-primary bg-primary p-2.5 transition duration-100 hover:bg-primary_hover"
-                        title="Reset filters"
-                    >
-                        <ClearFiltersIcon className="size-5 text-fg-quaternary" />
-                    </button>
-                    <span className="pointer-events-none absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white">
-                        {filters.activeCount}
-                    </span>
+                <div className="flex items-center gap-3">
+                    {/* Hide empty columns toggle — board view only */}
+                    {view === "board" && onToggleHideEmpty && (
+                        <button
+                            type="button"
+                            onClick={onToggleHideEmpty}
+                            className="flex items-center gap-1.5 text-sm font-medium text-secondary transition-colors hover:text-primary"
+                        >
+                            {hideEmpty ? "Show empty columns" : "Hide empty columns"}
+                            {hideEmpty ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                        </button>
+                    )}
+                    <div className={cx("relative", filters.activeCount === 0 && "invisible pointer-events-none")}>
+                        <button
+                            type="button"
+                            onClick={filters.onReset}
+                            className="flex cursor-pointer items-center justify-center rounded-lg border border-primary bg-primary p-2.5 transition duration-100 hover:bg-primary_hover"
+                            title="Reset filters"
+                        >
+                            <ClearFiltersIcon className="size-5 text-fg-quaternary" />
+                        </button>
+                        <span className="pointer-events-none absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white">
+                            {filters.activeCount}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4355,6 +4357,8 @@ const LeadOverlay = ({
     hideNewTask = false,
     relatedTaskRows = [],
     currentTaskId,
+    initialRelatedTasks,
+    onRelatedTasksChange,
 }: {
     lead: LeadRow;
     leadIndex: number;
@@ -4366,8 +4370,10 @@ const LeadOverlay = ({
     initialTasks?: OverlayTask[];
     onTasksChange?: (tasks: OverlayTask[]) => void;
     hideNewTask?: boolean;
-    relatedTaskRows?: TaskRow[];
+    relatedTaskRows?: { id: string; task: string; priority: string; due: string; assignee: string }[];
     currentTaskId?: string;
+    initialRelatedTasks?: OverlayTask[];
+    onRelatedTasksChange?: (tasks: OverlayTask[]) => void;
 }) => {
     const [activeTab, setActiveTab] = useState<OverlayTab>("contact");
     const [noteText, setNoteText] = useState("");
@@ -4376,20 +4382,26 @@ const LeadOverlay = ({
     const [taskDesc, setTaskDesc] = useState("");
     const [tasks, setTasks] = useState<OverlayTask[]>(initialTasks);
     const [relatedTasks, setRelatedTasks] = useState<OverlayTask[]>(() =>
-        relatedTaskRows.map((t, i) => ({
-            id: -(i + 1),
-            originalId: t.id,
-            desc: t.task,
-            priority: t.priority,
-            due: t.due,
-            assignee: t.assignee,
-            completed: false,
-        })),
+        initialRelatedTasks
+            ? initialRelatedTasks.map(t => ({ ...t, originalId: t.originalId ?? String(t.id) }))
+            : relatedTaskRows.map((t, i) => ({
+                id: -(i + 1),
+                originalId: t.id,
+                desc: t.task,
+                priority: t.priority,
+                due: t.due,
+                assignee: t.assignee,
+                completed: false,
+            }))
     );
     const nextTaskId = useRef(initialTasks.length > 0 ? Math.max(...initialTasks.map(t => t.id)) + 1 : 0);
     const currentTaskCompleted = currentTaskId
         ? relatedTasks.some(t => t.originalId === currentTaskId && t.completed)
         : false;
+
+    const onRelatedTasksChangeRef = useRef(onRelatedTasksChange);
+    useEffect(() => { onRelatedTasksChangeRef.current = onRelatedTasksChange; }, [onRelatedTasksChange]);
+    useEffect(() => { onRelatedTasksChangeRef.current?.(relatedTasks); }, [relatedTasks]);
 
     const updateTasks = (next: OverlayTask[]) => {
         setTasks(next);
@@ -5772,38 +5784,20 @@ const LeadsPage = ({ isRefreshing, onLeadTasksChange }: { isRefreshing: boolean;
 // ─── Tasks Page ───────────────────────────────────────────────────────────────
 
 type TaskPriority = "High" | "Medium" | "Low";
-type TaskContactKind = "No call yet" | "Left Voicemail" | "Connected";
-
-interface TaskRow {
-    id: string;
-    task: string;
-    contactName: string;
-    company: string;
-    priority: TaskPriority;
-    due: string;
-    phone: string;
-    contactKind: TaskContactKind;
-    assignee: string;
-    playbookDone: boolean;
-}
-
-const TASKS_DATA: TaskRow[] = [
-    { id: "t1",  task: "Homeowner own book eligible cold call again",        contactName: "John Doe",       company: "Bigbidness LTD",         priority: "High",   due: "Yesterday",   phone: "07412 345678", contactKind: "No call yet",    assignee: "Alex Buck",   playbookDone: true  },
-    { id: "t2",  task: "Dashboard question",                                 contactName: "Laura Davis",    company: "Visionary Ventures",     priority: "Medium", due: "Today",       phone: "07723 179931", contactKind: "Left Voicemail", assignee: "Sarah Chen",  playbookDone: true  },
-    { id: "t3",  task: "Dashboard upload completed for",                     contactName: "Michael Smith",  company: "FutureTech Group",       priority: "Low",    due: "Today",       phone: "07987 654321", contactKind: "Connected",      assignee: "Alex Buck",   playbookDone: false },
-    { id: "t4",  task: "Re-submission",                                      contactName: "Emily Johnson",  company: "Innovate Solutions LLC", priority: "High",   due: "Yesterday",   phone: "07765 432109", contactKind: "No call yet",    assignee: "Jake Torres", playbookDone: false },
-    { id: "t5",  task: "Check back in with client (6 months passed)",        contactName: "Sarah Brown",    company: "Creative Minds Co.",     priority: "Medium", due: "30/05/2026",  phone: "07654 321987", contactKind: "Left Voicemail", assignee: "Sarah Chen",  playbookDone: false },
-    { id: "t6",  task: "Follow up on outstanding documents",                 contactName: "Alex Carter",    company: "TechSphere Inc.",        priority: "High",   due: "Yesterday",   phone: "07891 234567", contactKind: "Connected",      assignee: "Alex Buck",   playbookDone: true  },
-    { id: "t7",  task: "Send updated proposal",                              contactName: "David Wilson",   company: "NextGen Enterprises",    priority: "Low",    due: "Today",       phone: "07598 765432", contactKind: "No call yet",    assignee: "Jake Torres", playbookDone: true  },
-    { id: "t8",  task: "Confirm meeting for next week",                      contactName: "Hannah Clarke",  company: "Apex Solutions Ltd",     priority: "Medium", due: "02/06/2026",  phone: "07312 456789", contactKind: "Connected",      assignee: "Sarah Chen",  playbookDone: false },
-    { id: "t9",  task: "Chase bank statements",                              contactName: "Tom Fletcher",   company: "Horizon Capital",        priority: "High",   due: "Today",       phone: "07456 789123", contactKind: "Left Voicemail", assignee: "Alex Buck",   playbookDone: true  },
-    { id: "t10", task: "Review credit report and update CRM",                contactName: "Olivia Grant",   company: "Stellar Finance",        priority: "Low",    due: "05/06/2026",  phone: "07234 567890", contactKind: "No call yet",    assignee: "Jake Torres", playbookDone: false },
-    { id: "t11", task: "Initial eligibility check",                          contactName: "Marcus Webb",    company: "Webb & Partners",        priority: "Medium", due: "Today",       phone: "07567 890234", contactKind: "Connected",      assignee: "Sarah Chen",  playbookDone: true  },
-    { id: "t12", task: "Resend application link",                            contactName: "Priya Sharma",   company: "Sharma Retail Ltd",      priority: "Low",    due: "06/06/2026",  phone: "07678 901345", contactKind: "No call yet",    assignee: "Alex Buck",   playbookDone: false },
-];
-
-const TASKS_MOCK_OVERDUE   = TASKS_DATA.filter(t => t.due === "Yesterday").length;
-const TASKS_MOCK_DUE_TODAY = TASKS_DATA.filter(t => t.due === "Today").length;
+const initialLeadTasks: Record<string, OverlayTask[]> = {
+    "ld1":  [{ id: 1, originalId: "t1",  desc: "Homeowner own book eligible cold call again",   priority: "High",   due: "Yesterday",  assignee: "Alex Buck",   completed: false }],
+    "ld2":  [{ id: 1, originalId: "t2",  desc: "Dashboard question",                            priority: "Medium", due: "Today",      assignee: "Sarah Chen",  completed: false }],
+    "ld3":  [{ id: 1, originalId: "t3",  desc: "Dashboard upload completed for",                priority: "Low",    due: "Today",      assignee: "Alex Buck",   completed: false }],
+    "ld4":  [{ id: 1, originalId: "t4",  desc: "Re-submission",                                 priority: "High",   due: "Yesterday",  assignee: "Jake Torres", completed: false }],
+    "ld5":  [{ id: 1, originalId: "t5",  desc: "Check back in with client (6 months passed)",   priority: "Medium", due: "30/05/2026", assignee: "Sarah Chen",  completed: false }],
+    "ld6":  [{ id: 1, originalId: "t6",  desc: "Follow up on outstanding documents",            priority: "High",   due: "Yesterday",  assignee: "Alex Buck",   completed: false }],
+    "ld7":  [{ id: 1, originalId: "t7",  desc: "Send updated proposal",                         priority: "Low",    due: "Today",      assignee: "Jake Torres", completed: false }],
+    "ld8":  [{ id: 1, originalId: "t8",  desc: "Confirm meeting for next week",                 priority: "Medium", due: "02/06/2026", assignee: "Sarah Chen",  completed: false }],
+    "ld9":  [{ id: 1, originalId: "t9",  desc: "Chase bank statements",                         priority: "High",   due: "Today",      assignee: "Alex Buck",   completed: false }],
+    "ld10": [{ id: 1, originalId: "t10", desc: "Review credit report and update CRM",           priority: "Low",    due: "05/06/2026", assignee: "Jake Torres", completed: false }],
+    "ld11": [{ id: 1, originalId: "t11", desc: "Initial eligibility check",                     priority: "Medium", due: "Today",      assignee: "Sarah Chen",  completed: false }],
+    "ld12": [{ id: 1, originalId: "t12", desc: "Resend application link",                       priority: "Low",    due: "06/06/2026", assignee: "Alex Buck",   completed: false }],
+};
 
 const TaskPriorityBadge = ({ priority }: { priority: TaskPriority }) => (
     <BadgeWithDot
@@ -5815,17 +5809,35 @@ const TaskPriorityBadge = ({ priority }: { priority: TaskPriority }) => (
     </BadgeWithDot>
 );
 
-const TaskContactKindBadge = ({ kind }: { kind: TaskContactKind }) => (
+const TaskContactKindBadge = ({ callStatus }: { callStatus: string }) => (
     <BadgeWithDot
         type="modern"
         size="sm"
-        color={kind === "Connected" ? "success" : kind === "Left Voicemail" ? "gray-blue" : "gray"}
+        color={
+            callStatus === "Called Today" ? "success" :
+            callStatus === "Never Called" ? "gray" :
+            "gray-blue"
+        }
     >
-        {kind}
+        {callStatus}
     </BadgeWithDot>
 );
 
-const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefreshing: boolean }) => {
+type FlatTaskRow = { rowId: string; leadId: string; lead: LeadRow; task: OverlayTask };
+
+const TasksPage = ({
+    onRefresh,
+    isRefreshing,
+    allLeads,
+    leadTasks,
+    onLeadTasksChange,
+}: {
+    onRefresh: () => void;
+    isRefreshing: boolean;
+    allLeads: LeadRow[];
+    leadTasks: Record<string, OverlayTask[]>;
+    onLeadTasksChange: (leadId: string, tasks: OverlayTask[]) => void;
+}) => {
     const [search, setSearch]           = useState("");
     const [assignee, setAssignee]       = useState("My team");
     const [dueDate, setDueDate]         = useState("All due dates");
@@ -5838,14 +5850,24 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
     const [completedIds, setCompletedIds]     = useState<Set<string>>(new Set());
     const [exitingIds, setExitingIds]         = useState<Set<string>>(new Set());
     const [collapsingIds, setCollapsingIds]   = useState<Set<string>>(new Set());
-    const [openTaskId, setOpenTaskId]         = useState<string | null>(null);
+    const [openLeadId, setOpenLeadId]         = useState<string | null>(null);
+    const [openRowTaskId, setOpenRowTaskId]   = useState<string | null>(null);
     const [isClosingTask, setIsClosingTask]   = useState(false);
 
     const handleCloseTask = () => {
         setIsClosingTask(true);
-        setTimeout(() => { setOpenTaskId(null); setIsClosingTask(false); }, 150);
+        setTimeout(() => { setOpenLeadId(null); setOpenRowTaskId(null); setIsClosingTask(false); }, 150);
     };
     const searchWrapperRef = useRef<HTMLDivElement>(null);
+
+    const allTaskRows: FlatTaskRow[] = allLeads.flatMap(lead =>
+        (leadTasks[lead.id] ?? []).map(task => ({
+            rowId: `${lead.id}:${task.id}`,
+            leadId: lead.id,
+            lead,
+            task,
+        }))
+    );
 
     type TaskSortCol = "task" | "priority" | "due" | "contactKind" | "assignee";
     const [sortCol, setSortCol] = useState<TaskSortCol>("due");
@@ -5893,45 +5915,44 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
 
     const priorityOrder: Record<TaskPriority, number> = { High: 0, Medium: 1, Low: 2 };
 
-    const filtered = TASKS_DATA.filter(t => {
-        if (exitingIds.has(t.id) || collapsingIds.has(t.id)) return true;
-        if (search && !t.task.toLowerCase().includes(search.toLowerCase()) &&
-            !t.contactName.toLowerCase().includes(search.toLowerCase()) &&
-            !t.company.toLowerCase().includes(search.toLowerCase())) return false;
+    const filtered = allTaskRows.filter(r => {
+        const { rowId, lead, task } = r;
+        if (exitingIds.has(rowId) || collapsingIds.has(rowId)) return true;
+        if (search && !task.desc.toLowerCase().includes(search.toLowerCase()) &&
+            !lead.name.toLowerCase().includes(search.toLowerCase()) &&
+            !(lead.company?.toLowerCase().includes(search.toLowerCase()) ?? false)) return false;
         if (dueDate !== "All due dates") {
-            if (dueDate === "Today"     && t.due !== "Today")     return false;
-            if (dueDate === "Overdue"   && t.due !== "Yesterday")  return false;
+            if (dueDate === "Today"   && task.due !== "Today")     return false;
+            if (dueDate === "Overdue" && task.due !== "Yesterday") return false;
         }
-        if (playbook === "Yes" && !t.playbookDone) return false;
-        if (playbook === "No"  &&  t.playbookDone) return false;
-        if (callOutcome !== "Call outcome: any"     && t.contactKind !== callOutcome) return false;
-        if (assignee    !== "My team" && assignee !== "All assignees" && t.assignee !== assignee) return false;
-        if (completion === "Not Completed" &&  completedIds.has(t.id)) return false;
-        if (completion === "Completed"     && !completedIds.has(t.id)) return false;
+        if (callOutcome !== "Call outcome: any" && lead.callStatus !== callOutcome) return false;
+        if (assignee !== "My team" && assignee !== "All assignees" && task.assignee !== assignee) return false;
+        if (completion === "Not Completed" && (completedIds.has(rowId) || task.completed)) return false;
+        if (completion === "Completed"     && !completedIds.has(rowId) && !task.completed) return false;
         return true;
     });
 
     const sorted = [...filtered].sort((a, b) => {
         let cmp = 0;
-        if (sortCol === "task")        cmp = a.task.localeCompare(b.task);
-        else if (sortCol === "priority")    cmp = priorityOrder[a.priority] - priorityOrder[b.priority];
-        else if (sortCol === "due")         cmp = dueSortKey(a.due) - dueSortKey(b.due);
-        else if (sortCol === "contactKind") cmp = a.contactKind.localeCompare(b.contactKind);
-        else if (sortCol === "assignee")    cmp = a.assignee.localeCompare(b.assignee);
+        if (sortCol === "task")        cmp = a.task.desc.localeCompare(b.task.desc);
+        else if (sortCol === "priority")    cmp = priorityOrder[a.task.priority as TaskPriority ?? "Low"] - priorityOrder[b.task.priority as TaskPriority ?? "Low"];
+        else if (sortCol === "due")         cmp = dueSortKey(a.task.due ?? "") - dueSortKey(b.task.due ?? "");
+        else if (sortCol === "contactKind") cmp = a.lead.callStatus.localeCompare(b.lead.callStatus);
+        else if (sortCol === "assignee")    cmp = (a.task.assignee ?? "").localeCompare(b.task.assignee ?? "");
         return sortDir === "asc" ? cmp : -cmp;
     });
 
     const totalPages = Math.max(1, Math.ceil(sorted.length / rowsPerPage));
     const pageRows   = sorted.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
-    const allPageSelected  = pageRows.length > 0 && pageRows.every(r => selected.has(r.id));
-    const somePageSelected = pageRows.some(r => selected.has(r.id)) && !allPageSelected;
+    const allPageSelected  = pageRows.length > 0 && pageRows.every(r => selected.has(r.rowId));
+    const somePageSelected = pageRows.some(r => selected.has(r.rowId)) && !allPageSelected;
 
     const toggleAll = () => {
-        if (allPageSelected) setSelected(s => { const n = new Set(s); pageRows.forEach(r => n.delete(r.id)); return n; });
-        else setSelected(s => { const n = new Set(s); pageRows.forEach(r => n.add(r.id)); return n; });
+        if (allPageSelected) setSelected(s => { const n = new Set(s); pageRows.forEach(r => n.delete(r.rowId)); return n; });
+        else setSelected(s => { const n = new Set(s); pageRows.forEach(r => n.add(r.rowId)); return n; });
     };
-    const toggleRow = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    const toggleRow = (rowId: string) => setSelected(s => { const n = new Set(s); n.has(rowId) ? n.delete(rowId) : n.add(rowId); return n; });
 
     const pages: (number | "…")[] = [];
     if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
@@ -5959,29 +5980,17 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
         transition: "height 200ms ease-in-out",
     });
 
-    const openTask     = openTaskId ? TASKS_DATA.find(t => t.id === openTaskId) ?? null : null;
-    const openTaskIdx  = openTaskId ? sorted.findIndex(t => t.id === openTaskId) : -1;
+    const openLead    = openLeadId ? allLeads.find(l => l.id === openLeadId) ?? null : null;
+    const openTaskIdx = openLeadId ? sorted.findIndex(r => r.leadId === openLeadId) : -1;
 
-    const taskToLeadRow = (t: TaskRow): LeadRow => ({
-        id:           t.id,
-        name:         t.contactName,
-        company:      t.company,
-        applied:      t.due,
-        businessType: "Limited",
-        strength:     "Strong",
-        callStatus:   t.contactKind,
-        assignee:     t.assignee,
-        phone:        t.phone,
-    });
-
-    const selRows            = TASKS_DATA.filter(t => selected.has(t.id));
-    const priorities         = [...new Set(selRows.map(t => t.priority))];
-    const dates              = [...new Set(selRows.map(t => t.due))];
-    const assignees          = [...new Set(selRows.map(t => t.assignee))];
+    const selRows            = allTaskRows.filter(r => selected.has(r.rowId));
+    const priorities         = [...new Set(selRows.map(r => r.task.priority).filter(Boolean))];
+    const dates              = [...new Set(selRows.map(r => r.task.due).filter(Boolean))];
+    const assignees          = [...new Set(selRows.map(r => r.task.assignee ?? r.lead.assignee))];
     const priLabel           = priorities.length === 1 ? `${priorities[0]} priority` : "Various priorities";
-    const dateLabel          = dates.length === 1 ? dates[0] : "Various dates";
+    const dateLabel          = dates.length === 1 ? dates[0]! : "Various dates";
     const assignLabel        = assignees.length === 1 ? assignees[0] : "Various assignees";
-    const allSelectedCompleted = selRows.length > 0 && selRows.every(t => completedIds.has(t.id));
+    const allSelectedCompleted = selRows.length > 0 && selRows.every(r => completedIds.has(r.rowId) || r.task.completed);
 
     return (
         <>
@@ -5992,8 +6001,8 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
                     <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
                         <div className="flex items-center gap-4 px-5 py-4">
                             <h1 className="text-lg font-semibold text-primary">Tasks</h1>
-                            <Badge type="modern" color="gray" size="sm">{TASKS_MOCK_OVERDUE} overdue</Badge>
-                            <Badge type="modern" color="gray" size="sm">{TASKS_MOCK_DUE_TODAY} due today</Badge>
+                            <Badge type="modern" color="gray" size="sm">{allTaskRows.filter(r => r.task.due === "Yesterday").length} overdue</Badge>
+                            <Badge type="modern" color="gray" size="sm">{allTaskRows.filter(r => r.task.due === "Today").length} due today</Badge>
                             <div ref={searchWrapperRef} className="ml-auto flex items-center gap-2">
                                 <Input size="sm" placeholder="Search" icon={SearchLg} shortcut="/" wrapperClassName="w-64" value={search} onChange={setSearch} />
                                 <button
@@ -6014,7 +6023,7 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
                                     <LeadsSimpleFilter label="Homeowner: any"       options={["Homeowner: any", "Yes", "No"]}                                                 value={homeowner}   onChange={v => { setHomeowner(v);   setPage(1); }} />
                                     <LeadsSimpleFilter label="All business types"   options={["All business types", "Limited", "Sole Trader", "Partnership"]}                 value={bizType}     onChange={v => { setBizType(v);     setPage(1); }} />
                                     <LeadsSimpleFilter label="Playbook: any"        options={["Playbook: any", "Yes", "No"]}                                                  value={playbook}    onChange={v => { setPlaybook(v);    setPage(1); }} />
-                                    <LeadsSimpleFilter label="Call outcome: any"    options={["Call outcome: any", "Connected", "No Answer", "Voicemail", "Callback requested"]} value={callOutcome} onChange={v => { setCallOutcome(v); setPage(1); }} />
+                                    <LeadsSimpleFilter label="Call outcome: any"    options={["Call outcome: any", "Called Today", "Voicemail", "Never Called", "Called Yesterday"]} value={callOutcome} onChange={v => { setCallOutcome(v); setPage(1); }} />
                                     <LeadsSimpleFilter label="Conversion year: any" options={["Conversion year: any", "2024", "2025", "2026"]}                                value={convYear}    onChange={v => { setConvYear(v);    setPage(1); }} />
                                 </div>
                                 <div className={cx("relative", activeFilterCount === 0 && "invisible pointer-events-none")}>
@@ -6075,52 +6084,49 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
                                             No tasks match your filters.
                                         </td>
                                     </tr>
-                                ) : pageRows.map(task => (
-                                    <tr key={task.id} onClick={() => setOpenTaskId(task.id)} className={cx("group cursor-pointer", exitingIds.has(task.id) && "task-row-exit")}>
-                                        <td className={tdOuter(task.id)}>
-                                            <div className={tdInner(task.id, "gap-3 pl-5 pr-4")} style={tdInnerStyle(task.id)}>
+                                ) : pageRows.map(r => (
+                                    <tr key={r.rowId} onClick={() => { setOpenLeadId(r.leadId); setOpenRowTaskId(r.task.originalId ?? String(r.task.id)); }} className={cx("group cursor-pointer", exitingIds.has(r.rowId) && "task-row-exit")}>
+                                        <td className={tdOuter(r.rowId)}>
+                                            <div className={tdInner(r.rowId, "gap-3 pl-5 pr-4")} style={tdInnerStyle(r.rowId)}>
                                                 <div onClick={e => e.stopPropagation()}>
                                                     <Checkbox
-                                                        isSelected={selected.has(task.id)}
-                                                        onChange={() => toggleRow(task.id)}
+                                                        isSelected={selected.has(r.rowId)}
+                                                        onChange={() => toggleRow(r.rowId)}
                                                     />
                                                 </div>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className={cx("text-sm font-medium", completedIds.has(task.id) ? "text-tertiary line-through" : "text-primary")}>{task.task}</span>
-                                                    <span className="text-sm text-tertiary">{task.contactName} • {task.company}</span>
+                                                    <span className={cx("text-sm font-medium", completedIds.has(r.rowId) ? "text-tertiary line-through" : "text-primary")}>{r.task.desc}</span>
+                                                    <span className="text-sm text-tertiary">{r.lead.name} • {r.lead.company}</span>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className={tdOuter(task.id)}>
-                                            <div className={tdInner(task.id)} style={tdInnerStyle(task.id)}>
-                                                <TaskPriorityBadge priority={task.priority} />
+                                        <td className={tdOuter(r.rowId)}>
+                                            <div className={tdInner(r.rowId)} style={tdInnerStyle(r.rowId)}>
+                                                <TaskPriorityBadge priority={r.task.priority as TaskPriority} />
                                             </div>
                                         </td>
-                                        <td className={tdOuter(task.id)}>
-                                            <div className={tdInner(task.id)} style={tdInnerStyle(task.id)}>
-                                                <span className={cx("text-sm font-medium", task.due === "Yesterday" ? "text-error-600" : "text-secondary")}>
-                                                    {task.due}
+                                        <td className={tdOuter(r.rowId)}>
+                                            <div className={tdInner(r.rowId)} style={tdInnerStyle(r.rowId)}>
+                                                <span className={cx("text-sm font-medium", r.task.due === "Yesterday" ? "text-error-600" : "text-secondary")}>
+                                                    {r.task.due}
                                                 </span>
                                             </div>
                                         </td>
-                                        <td className={tdOuter(task.id)}>
-                                            <div className={tdInner(task.id, "text-sm text-tertiary")} style={tdInnerStyle(task.id)}>{task.phone}</div>
+                                        <td className={tdOuter(r.rowId)}>
+                                            <div className={tdInner(r.rowId, "text-sm text-tertiary")} style={tdInnerStyle(r.rowId)}>{r.lead.phone}</div>
                                         </td>
-                                        <td className={tdOuter(task.id)}>
-                                            <div className={tdInner(task.id)} style={tdInnerStyle(task.id)}>
-                                                <TaskContactKindBadge kind={task.contactKind} />
+                                        <td className={tdOuter(r.rowId)}>
+                                            <div className={tdInner(r.rowId)} style={tdInnerStyle(r.rowId)}>
+                                                <TaskContactKindBadge callStatus={r.lead.callStatus} />
                                             </div>
                                         </td>
-                                        <td className={tdOuter(task.id)}>
-                                            <div className={tdInner(task.id, "text-sm text-tertiary")} style={tdInnerStyle(task.id)}>{task.assignee}</div>
+                                        <td className={tdOuter(r.rowId)}>
+                                            <div className={tdInner(r.rowId, "text-sm text-tertiary")} style={tdInnerStyle(r.rowId)}>{r.task.assignee ?? r.lead.assignee}</div>
                                         </td>
-                                        <td className={tdOuter(task.id)}>
-                                            <div className={tdInner(task.id, "justify-center")} style={tdInnerStyle(task.id)}>
+                                        <td className={tdOuter(r.rowId)}>
+                                            <div className={tdInner(r.rowId, "justify-center")} style={tdInnerStyle(r.rowId)}>
                                                 <div className="flex items-center justify-center rounded-[6px] p-1.5">
-                                                    {task.playbookDone
-                                                        ? <Check  className="size-4 text-fg-quaternary" />
-                                                        : <XClose className="size-4 text-fg-quaternary" />
-                                                    }
+                                                    <XClose className="size-4 text-fg-quaternary" />
                                                 </div>
                                             </div>
                                         </td>
@@ -6191,26 +6197,68 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
                             type="button"
                             className="flex cursor-pointer items-center justify-center rounded-md bg-brand-solid p-2.5 shadow-xs transition hover:opacity-90"
                             onClick={() => {
-                                const ids = [...selected];
+                                const rowIds = [...selected];
                                 setSelected(new Set());
                                 if (allSelectedCompleted) {
-                                    setCompletedIds(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n; });
+                                    setCompletedIds(s => { const n = new Set(s); rowIds.forEach(id => n.delete(id)); return n; });
+                                    // Propagate uncomplete to leadTasks
+                                    const affectedLeads = new Map<string, string[]>();
+                                    rowIds.forEach(rowId => {
+                                        const [leadId] = rowId.split(":");
+                                        if (!affectedLeads.has(leadId)) affectedLeads.set(leadId, []);
+                                        affectedLeads.get(leadId)!.push(rowId);
+                                    });
+                                    affectedLeads.forEach((_, leadId) => {
+                                        const tasks = (leadTasks[leadId] ?? []).map(t => {
+                                            const rid = `${leadId}:${t.id}`;
+                                            return rowIds.includes(rid) ? { ...t, completed: false } : t;
+                                        });
+                                        onLeadTasksChange(leadId, tasks);
+                                    });
                                 } else if (completion === "Not Completed") {
-                                    setExitingIds(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n; });
+                                    setExitingIds(s => { const n = new Set(s); rowIds.forEach(id => n.add(id)); return n; });
                                     setTimeout(() => {
                                         // Remove slide class first — browser paints the row at h=72 without animation
-                                        setExitingIds(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n; });
+                                        setExitingIds(s => { const n = new Set(s); rowIds.forEach(id => n.delete(id)); return n; });
                                         // One rAF later, set h=0 so the browser has a clear "from 72" start value
                                         requestAnimationFrame(() => {
-                                            setCollapsingIds(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n; });
+                                            setCollapsingIds(s => { const n = new Set(s); rowIds.forEach(id => n.add(id)); return n; });
                                         });
                                     }, 250);
                                     setTimeout(() => {
-                                        setCompletedIds(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n; });
-                                        setCollapsingIds(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n; });
+                                        setCompletedIds(s => { const n = new Set(s); rowIds.forEach(id => n.add(id)); return n; });
+                                        setCollapsingIds(s => { const n = new Set(s); rowIds.forEach(id => n.delete(id)); return n; });
+                                        // Propagate complete to leadTasks
+                                        const affectedLeads = new Map<string, string[]>();
+                                        rowIds.forEach(rowId => {
+                                            const [leadId] = rowId.split(":");
+                                            if (!affectedLeads.has(leadId)) affectedLeads.set(leadId, []);
+                                            affectedLeads.get(leadId)!.push(rowId);
+                                        });
+                                        affectedLeads.forEach((_, leadId) => {
+                                            const tasks = (leadTasks[leadId] ?? []).map(t => {
+                                                const rid = `${leadId}:${t.id}`;
+                                                return rowIds.includes(rid) ? { ...t, completed: true } : t;
+                                            });
+                                            onLeadTasksChange(leadId, tasks);
+                                        });
                                     }, 470);
                                 } else {
-                                    setCompletedIds(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n; });
+                                    setCompletedIds(s => { const n = new Set(s); rowIds.forEach(id => n.add(id)); return n; });
+                                    // Propagate complete to leadTasks
+                                    const affectedLeads = new Map<string, string[]>();
+                                    rowIds.forEach(rowId => {
+                                        const [leadId] = rowId.split(":");
+                                        if (!affectedLeads.has(leadId)) affectedLeads.set(leadId, []);
+                                        affectedLeads.get(leadId)!.push(rowId);
+                                    });
+                                    affectedLeads.forEach((_, leadId) => {
+                                        const tasks = (leadTasks[leadId] ?? []).map(t => {
+                                            const rid = `${leadId}:${t.id}`;
+                                            return rowIds.includes(rid) ? { ...t, completed: true } : t;
+                                        });
+                                        onLeadTasksChange(leadId, tasks);
+                                    });
                                 }
                             }}
                         >
@@ -6225,18 +6273,29 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
             document.body,
         )}
 
-        {openTask && (
+        {openLead && (
             <LeadOverlay
-                lead={taskToLeadRow(openTask)}
+                lead={openLead}
                 leadIndex={openTaskIdx}
                 totalLeads={sorted.length}
                 isClosing={isClosingTask}
                 onClose={handleCloseTask}
-                onPrev={() => openTaskIdx > 0 && setOpenTaskId(sorted[openTaskIdx - 1].id)}
-                onNext={() => openTaskIdx < sorted.length - 1 && setOpenTaskId(sorted[openTaskIdx + 1].id)}
+                onPrev={() => { const idx = sorted.findIndex(r => r.leadId === openLeadId); if (idx > 0) { setOpenLeadId(sorted[idx-1].leadId); setOpenRowTaskId(sorted[idx-1].task.originalId ?? String(sorted[idx-1].task.id)); }}}
+                onNext={() => { const idx = sorted.findIndex(r => r.leadId === openLeadId); if (idx < sorted.length-1) { setOpenLeadId(sorted[idx+1].leadId); setOpenRowTaskId(sorted[idx+1].task.originalId ?? String(sorted[idx+1].task.id)); }}}
                 hideNewTask
-                currentTaskId={openTask.id}
-                relatedTaskRows={TASKS_DATA.filter(t => t.contactName === openTask.contactName)}
+                currentTaskId={openRowTaskId ?? undefined}
+                initialRelatedTasks={(leadTasks[openLeadId!] ?? []).map(t => ({ ...t, originalId: t.originalId ?? String(t.id) }))}
+                onRelatedTasksChange={(tasks) => {
+                    onLeadTasksChange(openLeadId!, tasks);
+                    setCompletedIds(ids => {
+                        const next = new Set(ids);
+                        tasks.forEach(t => {
+                            const rowId = `${openLeadId}:${t.id}`;
+                            if (t.completed) next.add(rowId); else next.delete(rowId);
+                        });
+                        return next;
+                    });
+                }}
             />
         )}
         </>
@@ -6521,7 +6580,7 @@ const PortalHomePage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; is
 export const LoveyPortal = () => {
     const { pathname } = useLocation();
     const [leadsData, setLeadsData] = useState<Record<LeadStage, Lead[]>>(initialLeadsData);
-    const [leadTasks, setLeadTasks] = useState<Record<string, OverlayTask[]>>({});
+    const [leadTasks, setLeadTasks] = useState<Record<string, OverlayTask[]>>(initialLeadTasks);
     const handleLeadTasksChange = useCallback((leadId: string, tasks: OverlayTask[]) => {
         setLeadTasks(prev => ({ ...prev, [leadId]: tasks }));
     }, []);
@@ -6683,7 +6742,13 @@ export const LoveyPortal = () => {
             ) : isLeadsPage ? (
                 <LeadsPage isRefreshing={isRefreshing} onLeadTasksChange={handleLeadTasksChange} />
             ) : isTasksPage ? (
-                <TasksPage onRefresh={handleRefresh} isRefreshing={isRefreshing} />
+                <TasksPage
+                    onRefresh={handleRefresh}
+                    isRefreshing={isRefreshing}
+                    allLeads={LEADS_DATA}
+                    leadTasks={leadTasks}
+                    onLeadTasksChange={handleLeadTasksChange}
+                />
             ) : isAppsPage ? (
             <div
                 {...(view === "table" ? tableDrag.dragProps : {})}
