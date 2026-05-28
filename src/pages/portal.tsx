@@ -4610,8 +4610,26 @@ const LeadOverlay = ({
                     <div className="flex flex-1 overflow-hidden">
                         {/* Left panel */}
                         <div className="flex flex-1 flex-col overflow-y-auto min-w-0">
+                            {/* Lead tasks list — Leads view, shown above the form */}
+                            {!hideNewTask && tasks.filter(t => !t.completed).length > 0 && (
+                                <div className="shrink-0 flex flex-col gap-2 p-3 pb-0" style={{ order: 0 }}>
+                                    <p className="px-2 text-sm font-semibold text-primary">Tasks</p>
+                                    <div className="flex flex-col gap-2">
+                                        {tasks.filter(t => !t.completed).map(task => (
+                                            <AnimatedTaskCard
+                                                key={task.id}
+                                                task={task}
+                                                onComplete={() => updateTasks(tasks.map(t => t.id === task.id ? { ...t, completed: true } : t))}
+                                                onRemove={() => updateTasks(tasks.filter(t => t.id !== task.id))}
+                                                onUpdate={(updates) => updateTasks(tasks.map(t => t.id === task.id ? { ...t, ...updates } : t))}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* New task */}
-                            {(!hideNewTask || currentTaskCompleted) && <div className={cx("shrink-0 p-3", currentTaskCompleted && "animate-in fade-in slide-in-from-bottom-2 duration-300")} style={{ order: hideNewTask ? 2 : 0 }}>
+                            {(!hideNewTask || currentTaskCompleted) && <div className={cx("shrink-0 p-3", currentTaskCompleted && "animate-in fade-in slide-in-from-bottom-2 duration-300")} style={{ order: hideNewTask ? 2 : 1 }}>
                                 <div className="flex flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
                                     <div className="px-5 pt-3 pb-2">
                                         <p className="text-sm font-semibold text-primary">New task</p>
@@ -4813,19 +4831,6 @@ const LeadOverlay = ({
                                         </Button>
                                     </div>
                                 </div>
-                                {tasks.filter(t => !t.completed).length > 0 && (
-                                    <div className="flex flex-col gap-2 mt-4 overflow-hidden">
-                                        {tasks.filter(t => !t.completed).map(task => (
-                                            <AnimatedTaskCard
-                                                key={task.id}
-                                                task={task}
-                                                onComplete={() => updateTasks(tasks.map(t => t.id === task.id ? { ...t, completed: true } : t))}
-                                                onRemove={() => updateTasks(tasks.filter(t => t.id !== task.id))}
-                                                onUpdate={(updates) => updateTasks(tasks.map(t => t.id === task.id ? { ...t, ...updates } : t))}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
                             </div>}
 
                             {/* Tasks view — task list */}
