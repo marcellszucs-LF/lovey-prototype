@@ -2824,6 +2824,51 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     <Badge type="pill-color" color="success" size="sm">PSC Public Gazette</Badge>
                                 </div>
 
+                                {/* ── Score card ── */}
+                                <InfoCard title="Score card" raw>
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                        <div className="flex items-center gap-2 bg-utility-success-50 px-5 py-2">
+                                            <span className="whitespace-nowrap text-[48px] font-bold leading-[60px] tracking-[-0.96px] text-success-primary">15.9</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-secondary">Combined Score</span>
+                                                <span className="text-sm font-medium text-quaternary">(lower is better)</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex border-t border-secondary">
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Characteristic</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
+                                                        <span className="whitespace-nowrap text-sm font-medium text-tertiary">{characteristic}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Attribute</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic, attribute }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary px-6 last:border-b-0">
+                                                        <span className="text-sm text-tertiary">{attribute}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex shrink-0 flex-col">
+                                                <div className="flex h-11 items-center justify-end border-b border-secondary bg-primary px-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Partial Score</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic, partialScore }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center justify-end border-b border-secondary px-6 last:border-b-0">
+                                                        <span className="text-sm font-semibold text-success-primary">{partialScore}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </InfoCard>
+
                                 {/* ── Active payments ── */}
                                 <InfoCard
                                     title={`${lead.applicantName ?? "Applicant"}'s active payments`}
@@ -3013,51 +3058,6 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     </div>
                                 </InfoCard>
 
-                                {/* ── Score card ── */}
-                                <InfoCard title="Score card" raw>
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
-                                        <div className="flex items-center gap-2 bg-utility-success-50 px-5 py-2">
-                                            <span className="whitespace-nowrap text-[48px] font-bold leading-[60px] tracking-[-0.96px] text-success-primary">15.9</span>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-secondary">Combined Score</span>
-                                                <span className="text-sm font-medium text-quaternary">(lower is better)</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex border-t border-secondary">
-                                            <div className="flex min-w-0 flex-1 flex-col">
-                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
-                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Characteristic</span>
-                                                </div>
-                                                {SCORE_CARD_ROWS.map(({ characteristic }) => (
-                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
-                                                        <span className="whitespace-nowrap text-sm font-medium text-tertiary">{characteristic}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="flex min-w-0 flex-1 flex-col">
-                                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
-                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Attribute</span>
-                                                </div>
-                                                {SCORE_CARD_ROWS.map(({ characteristic, attribute }) => (
-                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary px-6 last:border-b-0">
-                                                        <span className="text-sm text-tertiary">{attribute}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="flex shrink-0 flex-col">
-                                                <div className="flex h-11 items-center justify-end border-b border-secondary bg-primary px-6">
-                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Partial Score</span>
-                                                </div>
-                                                {SCORE_CARD_ROWS.map(({ characteristic, partialScore }) => (
-                                                    <div key={characteristic} className="flex h-12 items-center justify-end border-b border-secondary px-6 last:border-b-0">
-                                                        <span className="text-sm font-semibold text-success-primary">{partialScore}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </InfoCard>
-
                                 {/* ── Company Payments CAIS summary ── */}
                                 <InfoCard title="Company Payments - CAIS summary" raw>
                                     <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
@@ -3094,10 +3094,6 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             })}
                                         </div>
                                     </div>
-                                </InfoCard>
-
-                                <InfoCard title="Documents">
-                                    <SummaryField label="Status" value="No documents uploaded" className="w-full" />
                                 </InfoCard>
 
                                 {/* ── Wiser Funding Scores ── */}
