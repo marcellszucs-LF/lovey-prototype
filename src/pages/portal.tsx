@@ -4611,7 +4611,7 @@ const LeadOverlay = ({
                         {/* Left panel */}
                         <div className="flex flex-1 flex-col overflow-y-auto min-w-0">
                             {/* New task */}
-                            {(!hideNewTask || currentTaskCompleted) && <div className="shrink-0 p-3">
+                            {(!hideNewTask || currentTaskCompleted) && <div className="shrink-0 p-3" style={{ order: hideNewTask ? 2 : 0 }}>
                                 <div className="flex flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
                                     <div className="px-5 pt-3 pb-2">
                                         <p className="text-sm font-semibold text-primary">New task</p>
@@ -4830,7 +4830,7 @@ const LeadOverlay = ({
 
                             {/* Tasks view — task list */}
                             {hideNewTask && relatedTasks.length > 0 && (
-                                <div className="shrink-0 flex flex-col gap-2 p-3 pb-0">
+                                <div className="shrink-0 flex flex-col gap-2 p-3 pb-0" style={{ order: 1 }}>
                                     <p className="px-2 text-sm font-semibold text-primary">Tasks</p>
                                     <div className="flex flex-col gap-2">
                                         {relatedTasks.map(task => (
@@ -4848,7 +4848,7 @@ const LeadOverlay = ({
 
                             {/* Tasks view — lead summary (rendered after new-task pane) */}
                             {hideNewTask && (
-                                <div className="shrink-0 flex flex-col gap-3 p-3 pb-0">
+                                <div className="shrink-0 flex flex-col gap-3 p-3 pb-0" style={{ order: 3 }}>
                                     {/* Lead quick summary */}
                                     <div className="flex flex-col gap-0.5 rounded-xl bg-secondary_subtle shadow-xs">
                                         <div className="rounded-xl border border-secondary bg-primary px-5 pt-5 pb-6 shadow-xs">
