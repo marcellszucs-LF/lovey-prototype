@@ -3117,13 +3117,13 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                     ))}
                                                 </div>
                                                 <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
-                                                    <span className="text-sm text-primary">{row.payment}</span>
+                                                    <span className={cx("text-sm", row.payment === "N/A" ? "text-placeholder" : "text-primary")}>{row.payment}</span>
                                                 </div>
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
-                                                    <span className="text-sm text-primary">{row.balance}</span>
+                                                    <span className={cx("text-sm", row.balance === "N/A" ? "text-placeholder" : "text-primary")}>{row.balance}</span>
                                                 </div>
                                                 <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
-                                                    <span className="text-sm text-primary">{row.repay}</span>
+                                                    <span className={cx("text-sm", row.repay === "N/A" ? "text-placeholder" : "text-primary")}>{row.repay}</span>
                                                 </div>
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
                                                     <span className="text-sm text-primary">{row.defaultDate ?? "—"}</span>
@@ -3203,13 +3203,13 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                     ))}
                                                 </div>
                                                 <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
-                                                    <span className="text-sm text-primary">{row.payment}</span>
+                                                    <span className={cx("text-sm", row.payment === "N/A" ? "text-placeholder" : "text-primary")}>{row.payment}</span>
                                                 </div>
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
-                                                    <span className="text-sm text-primary">{row.balance}</span>
+                                                    <span className={cx("text-sm", row.balance === "N/A" ? "text-placeholder" : "text-primary")}>{row.balance}</span>
                                                 </div>
                                                 <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
-                                                    <span className="text-sm text-primary">{row.repay}</span>
+                                                    <span className={cx("text-sm", row.repay === "N/A" ? "text-placeholder" : "text-primary")}>{row.repay}</span>
                                                 </div>
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
                                                     <span className="text-sm text-primary">{row.settlementDate}</span>
