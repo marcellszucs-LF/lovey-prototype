@@ -2593,6 +2593,11 @@ const SETTLED_PAYMENTS_ROWS = [
     { accountType: "Unsecured loan",           offset: 6, history: ["0","0","U","0","0","0"],                        payment: "N/A",  balance: "N/A",   repay: "6",  settlementDate: "24.05.2026.", startDate: "2024-11-14" },
 ];
 
+const CCJ_ROWS: { date: string; amount: string; status: "Satisfied" | "Judgement" }[] = [
+    { date: "24.05.2018.", amount: "£2,500",    status: "Satisfied"  },
+    { date: "04.08.2016.", amount: "£800,000",  status: "Judgement"  },
+];
+
 const ALL_GREEN_12 = ["0","0","0","0","0","0","0","0","0","0","0","0"] as const;
 
 const CAIS_ACCOUNTS_ROWS = [
@@ -3253,6 +3258,53 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 <InfoCard title="Hometrack">
                                     <SummaryField label="Estimated value" value="£318,000"                                                              className="w-[calc(50%-6px)]" />
                                     <SummaryField label="Address"         value="63, Ambleside Walk, Canvey Island, United Kingdom CV359EE"              className="w-[calc(50%-6px)]" />
+                                </InfoCard>
+
+                                {/* ── CCJs ── */}
+                                <InfoCard
+                                    title="CCJs"
+                                    badge={
+                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                            <span className="text-center text-xs font-medium text-secondary">{CCJ_ROWS.length}</span>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                        {/* Header */}
+                                        <div className="flex border-b border-secondary">
+                                            <div className="flex h-11 flex-1 items-center pl-5 pr-4">
+                                                <span className="text-xs font-medium text-quaternary">Date</span>
+                                            </div>
+                                            <div className="flex h-11 flex-1 items-center px-4">
+                                                <span className="text-xs font-medium text-quaternary">Amount</span>
+                                            </div>
+                                            <div className="flex h-11 flex-1 items-center px-4">
+                                                <span className="text-xs font-medium text-quaternary">Status</span>
+                                            </div>
+                                        </div>
+                                        {/* Rows */}
+                                        {CCJ_ROWS.map((row, ri) => (
+                                            <div key={ri} className="flex items-center border-b border-secondary last:border-b-0">
+                                                <div className="flex h-12 flex-1 items-center pl-5 pr-4">
+                                                    <span className="text-sm text-tertiary">{row.date}</span>
+                                                </div>
+                                                <div className="flex h-12 flex-1 items-center px-4">
+                                                    <span className="text-sm text-tertiary">{row.amount}</span>
+                                                </div>
+                                                <div className="flex h-12 flex-1 items-center px-4">
+                                                    <span className={cx(
+                                                        "rounded-full border px-2 py-0.5 text-xs font-medium",
+                                                        row.status === "Satisfied"
+                                                            ? "border-utility-success-200 bg-utility-success-50 text-utility-success-700"
+                                                            : "border-utility-error-200 bg-utility-error-50 text-utility-error-700"
+                                                    )}>
+                                                        {row.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </InfoCard>
 
                                 {/* ── PSC Information ── */}
