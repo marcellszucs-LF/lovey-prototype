@@ -3041,9 +3041,9 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 <InfoCard
                                     title={`${lead.applicantName ?? "Applicant"}'s active payments`}
                                     badge={
-                                        <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">
-                                            {ACTIVE_PAYMENTS_ROWS.length}
-                                        </span>
+                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                            <span className="text-center text-xs font-medium text-secondary">{ACTIVE_PAYMENTS_ROWS.length}</span>
+                                        </div>
                                     }
                                     raw
                                 >
