@@ -2582,15 +2582,15 @@ const ACTIVE_PAYMENTS_STATUS: Record<string, { bg: string; text: string; border:
 };
 
 const ACTIVE_PAYMENTS_ROWS = [
-    { accountType: "Multi Communications Package", offset: 0, history: ["0","0","2","0","0","U","0","D","0","0","0","0"], payment: "£34",  balance: "£1085", repay: "2",   defaultDate: "12.09.2025." },
-    { accountType: "Student Loan",                 offset: 3, history: ["0","0","0","0","0","0"],                        payment: "N/A",  balance: "£206",  repay: "6",   defaultDate: null },
-    { accountType: "Unsecured Loan",               offset: 5, history: ["0","0","U","0","D","D","D"],                    payment: "£108", balance: "N/A",   repay: "N/A", defaultDate: "24.05.2026." },
-    { accountType: "Credit Card / Store Card",     offset: 1, history: ["0","0","0","0","0","0","0","0","0","0","0"],    payment: "N/A",  balance: "N/A",   repay: "N/A", defaultDate: null },
+    { accountType: "Multi Communications Package", offset: 0, history: ["0","0","2","0","0","U","0","D","0","0","0","0"], payment: "£34",  balance: "£1085", repay: "2",   defaultDate: "12.09.2025.", startDate: "2023-01-15" },
+    { accountType: "Student Loan",                 offset: 3, history: ["0","0","0","0","0","0"],                        payment: "N/A",  balance: "£206",  repay: "6",   defaultDate: null,           startDate: "2024-07-01" },
+    { accountType: "Unsecured Loan",               offset: 5, history: ["0","0","U","0","D","D","D"],                    payment: "£108", balance: "N/A",   repay: "N/A", defaultDate: "24.05.2026.",  startDate: "2024-03-20" },
+    { accountType: "Credit Card / Store Card",     offset: 1, history: ["0","0","0","0","0","0","0","0","0","0","0"],    payment: "N/A",  balance: "N/A",   repay: "N/A", defaultDate: null,           startDate: "2022-11-08" },
 ];
 
 const SETTLED_PAYMENTS_ROWS = [
-    { accountType: "Credit Card / Store Card", offset: 0, history: ["0","0","2","0","0","U","0","D","0","0","0","0"], payment: "£34",  balance: "£1085", repay: "24", settlementDate: "12.09.2025." },
-    { accountType: "Unsecured loan",           offset: 6, history: ["0","0","U","0","0","0"],                        payment: "N/A",  balance: "N/A",   repay: "6",  settlementDate: "24.05.2026." },
+    { accountType: "Credit Card / Store Card", offset: 0, history: ["0","0","2","0","0","U","0","D","0","0","0","0"], payment: "£34",  balance: "£1085", repay: "24", settlementDate: "12.09.2025.", startDate: "2022-09-01" },
+    { accountType: "Unsecured loan",           offset: 6, history: ["0","0","U","0","0","0"],                        payment: "N/A",  balance: "N/A",   repay: "6",  settlementDate: "24.05.2026.", startDate: "2024-11-14" },
 ];
 
 const ALL_GREEN_12 = ["0","0","0","0","0","0","0","0","0","0","0","0"] as const;
@@ -3093,6 +3093,9 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
                                                 <span className="text-xs font-medium text-quaternary">Date of Default</span>
                                             </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Start Date</span>
+                                            </div>
                                         </div>
                                         {/* Rows */}
                                         {ACTIVE_PAYMENTS_ROWS.map((row, ri) => (
@@ -3138,6 +3141,9 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
                                                     <span className="text-sm text-primary">{row.defaultDate ?? "—"}</span>
                                                 </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.startDate}</span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -3182,6 +3188,9 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
                                                 <span className="text-xs font-medium text-quaternary">Settlement Date</span>
                                             </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Start Date</span>
+                                            </div>
                                         </div>
                                         {/* Rows */}
                                         {SETTLED_PAYMENTS_ROWS.map((row, ri) => (
@@ -3224,6 +3233,9 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
                                                     <span className="text-sm text-primary">{row.settlementDate}</span>
                                                 </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.startDate}</span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -3256,7 +3268,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                     </TooltipTrigger>
                                                 </Tooltip>
                                             </div>
-                                            <div className="flex h-11 w-36 shrink-0 items-center px-4">
+                                            <div className="flex h-11 w-36 shrink-0 items-center justify-end px-4">
                                                 <span className="text-xs font-medium text-quaternary">Creditor Type</span>
                                             </div>
                                             <div className="flex h-11 w-24 shrink-0 items-center justify-end px-4">
@@ -3307,7 +3319,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                         <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
                                                 </div>
-                                                <div className="flex min-h-12 w-36 shrink-0 items-center px-4 py-3">
+                                                <div className="flex min-h-12 w-36 shrink-0 items-center justify-end px-4 py-3">
                                                     <span className="text-sm text-primary">{row.creditorType}</span>
                                                 </div>
                                                 <div className="flex h-12 w-24 shrink-0 items-center justify-end px-4">
