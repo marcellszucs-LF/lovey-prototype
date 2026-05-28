@@ -2306,11 +2306,11 @@ type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision";
 
 // ─── WiserFundingChart ────────────────────────────────────────────────────────
 
-// Each axis has its own domain — Z-Score 0–600, PoD 0–15% (inverted), LGD 0–100% (inverted)
+// Each axis has its own domain — Z-Score 0–600, PoD 0–40% (inverted), LGD 0–100% (inverted)
 // Pre-normalise to [0,1] per axis so the polygon area correctly reflects "larger = better"
 const RADAR_AXES = [
-    { key: "Z-Score", cap: 1000, invert: false, scaleLabel: "0 – 1000", unit: ""  },
-    { key: "PoD",     cap: 15,   invert: true,  scaleLabel: "0 – 15%",  unit: "%" },
+    { key: "Z-Score", cap: 600,  invert: false, scaleLabel: "0 – 600",  unit: ""  },
+    { key: "PoD",     cap: 40,   invert: true,  scaleLabel: "0 – 40%",  unit: "%" },
     { key: "LGD",     cap: 100,  invert: true,  scaleLabel: "0 – 100%", unit: "%" },
 ] as const;
 
