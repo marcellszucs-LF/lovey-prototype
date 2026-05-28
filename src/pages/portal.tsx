@@ -81,7 +81,7 @@ import { FeatureRequest } from "@/pages/feature-request";
 interface DateRange { start: Date; end: Date }
 interface AmountRange { min: number | null; max: number | null }
 
-type LeadStage = "triage" | "new" | "waiting" | "done";
+type LeadStage = "new_application" | "awaiting_accounts" | "auto_uw_error" | "ready_to_review" | "awaiting_customer" | "accepted" | "declined";
 
 interface Lead {
     id: string;
@@ -479,27 +479,33 @@ const getInitials = (name: string) =>
 // ─── Lead data ────────────────────────────────────────────────────────────────
 
 const initialLeadsData: Record<LeadStage, Lead[]> = {
-    triage: [
+    new_application: [
         { id: "1", company: "Stack3d Lab", companyNumber: "14823901", email: "hello@stack3dlab.com", address: "12 Shoreditch High St, London E1 6JE", incorporated: "14 Mar 2021", applicantName: "Alex Morgan", telephone: "+44 20 7946 0012", loanAmount: 120000, termMonths: 36, purpose: "Equipment or Assets", timeAgo: "2h", assignee: { name: "Jake Torres", initials: "JT" } },
         { id: "2", company: "Warpspeed", companyNumber: "13047562", email: "finance@warpspeed.io", address: "7 Kings Road, Bristol BS1 4EJ", incorporated: "02 Sep 2019", applicantName: "Jamie Lee", telephone: "+44 117 906 0032", loanAmount: 5000, termMonths: 12, purpose: "Payroll", timeAgo: "5h", assignee: { name: "Sarah Chen", initials: "SC" }, flagged: true },
         { id: "3", company: "NovaMed Clinic", companyNumber: "09381274", email: "ops@novamed.co.uk", address: "88 Harley Street, London W1G 7HJ", incorporated: "22 Jun 2016", applicantName: "Dr. Priya Shah", telephone: "+44 20 7946 0088", loanAmount: 350000, termMonths: 48, purpose: "New Products", timeAgo: "1h", assignee: { name: "Marcus Webb", initials: "MW" } },
         { id: "13", company: "Riviera Studios", companyNumber: "16204758", email: "hello@rivierastudios.co.uk", address: "Studio 12, 80 Bermondsey St, London SE1 3UD", incorporated: "07 May 2023", applicantName: "Chloe Dupont", telephone: "+44 20 7946 0130", loanAmount: 55000, termMonths: 18, purpose: "Working Capital", timeAgo: "14d", assignee: { name: "Lisa Park", initials: "LP" } },
         { id: "14", company: "ForgePoint Capital", companyNumber: "10837264", email: "ops@forgepointcap.com", address: "Level 3, 100 Cheapside, London EC2V 6DT", incorporated: "19 Feb 2018", applicantName: "Daniel Osei", telephone: "+44 20 7946 0141", loanAmount: 480000, termMonths: 60, purpose: "Invoice Finance", timeAgo: "45d", assignee: { name: "Jake Torres", initials: "JT" }, flagged: true },
     ],
-    new: [
+    awaiting_accounts: [
         { id: "4", company: "Warpspeed", companyNumber: "13047562", email: "finance@warpspeed.io", address: "7 Kings Road, Bristol BS1 4EJ", incorporated: "02 Sep 2019", applicantName: "Jamie Lee", telephone: "+44 117 906 0032", loanAmount: 80000, termMonths: 12, purpose: "Invoice Finance", timeAgo: "5h", assignee: { name: "Sarah Chen", initials: "SC" } },
         { id: "5", company: "Brick & Mortar Co.", companyNumber: "07265183", email: "accounts@brickmortar.com", address: "45 Union Street, Manchester M1 3GH", incorporated: "11 Jan 2015", applicantName: "Tom Briggs", telephone: "+44 161 496 0045", loanAmount: 45000, termMonths: 24, purpose: "Working Capital", timeAgo: "3h", assignee: { name: "Lisa Park", initials: "LP" } },
+    ],
+    auto_uw_error: [
         { id: "15", company: "Quantum Forge", companyNumber: "12947503", email: "bd@quantumforge.io", address: "Forge House, 99 Innovation Blvd, Leeds LS2 7EY", incorporated: "03 Dec 2020", applicantName: "Ryan Foster", telephone: "+44 113 320 0012", loanAmount: 95000, termMonths: 24, purpose: "New Products", timeAgo: "22d", assignee: { name: "Marcus Webb", initials: "MW" } },
     ],
-    waiting: [
+    ready_to_review: [
         { id: "6", company: "ContrastAI", companyNumber: "15109347", email: "cfo@contrastai.com", address: "Suite 4, 22 Cambridge Science Park, Cambridge CB4 0FX", incorporated: "30 Nov 2022", applicantName: "Nina Patel", telephone: "+44 1223 490 006", loanAmount: 200000, termMonths: 24, purpose: "Invoice Finance", timeAgo: "12min", assignee: { name: "Jake Torres", initials: "JT" } },
         { id: "7", company: "Stack3d Lab", companyNumber: "14823901", email: "hello@stack3dlab.com", address: "12 Shoreditch High St, London E1 6JE", incorporated: "14 Mar 2021", applicantName: "Alex Morgan", telephone: "+44 20 7946 0012", loanAmount: 120000, termMonths: 36, purpose: "Equipment or Assets", timeAgo: "4h", assignee: { name: "Marcus Webb", initials: "MW" } },
+    ],
+    awaiting_customer: [
         { id: "8", company: "SkyTech Innovations", companyNumber: "11748302", email: "finance@skytech.co.uk", address: "Unit 9 Innova Park, Enfield EN3 7NJ", incorporated: "05 Apr 2018", applicantName: "Chris Walton", telephone: "+44 20 8090 0009", loanAmount: 65000, termMonths: 6, purpose: "New Products", timeAgo: "30min", assignee: { name: "Sarah Chen", initials: "SC" } },
         { id: "9", company: "GreenWave Solutions", companyNumber: "10293847", email: "hello@greenwave.io", address: "Clarence House, 2 Clarence St, Glasgow G3 8AX", incorporated: "19 Jul 2017", applicantName: "Fiona Grant", telephone: "+44 141 229 0019", loanAmount: 95000, termMonths: 18, purpose: "Other", timeAgo: "2h", assignee: { name: "Lisa Park", initials: "LP" } },
     ],
-    done: [
+    accepted: [
         { id: "10", company: "Apex Security Ltd", companyNumber: "08374651", email: "biz@apexsecurity.co.uk", address: "Apex House, 1 Security Way, Reading RG1 3AP", incorporated: "08 Aug 2013", applicantName: "Mark Dawson", telephone: "+44 118 909 0010", loanAmount: 180000, termMonths: 60, purpose: "Equipment or Assets", timeAgo: "2d", assignee: { name: "Jake Torres", initials: "JT" } },
         { id: "11", company: "Blue Fin Restaurant", companyNumber: "06582930", email: "owner@bluefin.co.uk", address: "31 Harbour Walk, Brighton BN1 1NE", incorporated: "27 Feb 2010", applicantName: "Sophie Turner", telephone: "+44 1273 490 011", loanAmount: 75000, termMonths: 12, purpose: "Working Capital", timeAgo: "1d", assignee: { name: "Sarah Chen", initials: "SC" } },
+    ],
+    declined: [
         { id: "12", company: "Quantum Forge", companyNumber: "12947503", email: "finance@quantumforge.io", address: "Forge House, 99 Innovation Blvd, Leeds LS2 7EY", incorporated: "03 Dec 2020", applicantName: "Ryan Foster", telephone: "+44 113 320 0012", loanAmount: 420000, termMonths: 48, purpose: "New Products", timeAgo: "3d", assignee: { name: "Marcus Webb", initials: "MW" } },
     ],
 };
@@ -507,19 +513,25 @@ const initialLeadsData: Record<LeadStage, Lead[]> = {
 // ─── Column config ─────────────────────────────────────────────────────────────
 
 const columnConfig: Array<{ id: LeadStage; label: string }> = [
-    { id: "triage", label: "New" },
-    { id: "new", label: "Assigned" },
-    { id: "waiting", label: "Waiting for Customer" },
-    { id: "done", label: "Decision Made" },
+    { id: "new_application",   label: "New Application" },
+    { id: "awaiting_accounts", label: "Awaiting Accounts" },
+    { id: "auto_uw_error",     label: "Auto-underwriting Error" },
+    { id: "ready_to_review",   label: "Ready to Review" },
+    { id: "awaiting_customer", label: "Awaiting Customer" },
+    { id: "accepted",          label: "Accepted" },
+    { id: "declined",          label: "Declined" },
 ];
 
 // ─── Stage config ──────────────────────────────────────────────────────────────
 
 const STAGE_DOT: Record<LeadStage, string> = {
-    triage:  "bg-fg-quaternary",
-    new:     "bg-blue-500",
-    waiting: "bg-rose-500",
-    done:    "bg-green-500",
+    new_application:   "bg-fg-quaternary",
+    awaiting_accounts: "bg-blue-500",
+    auto_uw_error:     "bg-rose-500",
+    ready_to_review:   "bg-violet-500",
+    awaiting_customer: "bg-amber-400",
+    accepted:          "bg-green-500",
+    declined:          "bg-red-500",
 };
 
 
@@ -1276,6 +1288,8 @@ const ApplicationHeader = ({
     filters,
     view,
     onViewChange,
+    hideEmpty,
+    onToggleHideEmpty,
 }: {
     totalLeads: number;
     pipeline: number;
@@ -1285,6 +1299,8 @@ const ApplicationHeader = ({
     filters: HeaderFilters;
     view: "board" | "table";
     onViewChange: (v: "board" | "table") => void;
+    hideEmpty?: boolean;
+    onToggleHideEmpty?: () => void;
 }) => {
     const searchWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -1309,6 +1325,17 @@ const ApplicationHeader = ({
             <div ref={searchWrapperRef} className="ml-auto">
                 <Input size="sm" placeholder="Search" icon={SearchLg} shortcut="/" wrapperClassName="w-64" value={searchQuery} onChange={onSearchChange} />
             </div>
+            {/* Hide empty columns toggle — board view only */}
+            {view === "board" && onToggleHideEmpty && (
+                <button
+                    type="button"
+                    onClick={onToggleHideEmpty}
+                    className="flex items-center gap-1.5 text-sm font-medium text-secondary transition-colors hover:text-primary"
+                >
+                    {hideEmpty ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                    {hideEmpty ? "Show empty columns" : "Hide empty columns"}
+                </button>
+            )}
             {/* View toggle */}
             <div className="flex h-11 items-center rounded-lg border border-secondary bg-primary p-1 shadow-xs">
                 <button
@@ -1435,7 +1462,7 @@ const TD = ({ children, className }: { children: React.ReactNode; className?: st
 );
 
 const sortLeads = (leads: Array<Lead & { stage: LeadStage }>, col: SortCol, dir: SortDir) => {
-    const stageOrder: Record<LeadStage, number> = { triage: 0, new: 1, waiting: 2, done: 3 };
+    const stageOrder: Record<LeadStage, number> = { new_application: 0, awaiting_accounts: 1, auto_uw_error: 2, ready_to_review: 3, awaiting_customer: 4, accepted: 5, declined: 6 };
     const sorted = [...leads].sort((a, b) => {
         switch (col) {
             case "company":   return a.company.localeCompare(b.company);
@@ -6507,11 +6534,12 @@ export const LoveyPortal = () => {
             const newData = { ...prev };
             // Remove from current stage
             newData[currentStage] = prev[currentStage].filter((l) => l.id !== leadId);
-            // Add to "done" (Decision Made), avoiding duplicates
-            const alreadyInDone = prev.done.some((l) => l.id === leadId);
-            newData.done = alreadyInDone
-                ? prev.done.map((l) => (l.id === leadId ? updatedLead : l))
-                : [...prev.done, updatedLead];
+            // Move to accepted or declined stage
+            const targetStage: LeadStage = decision === "approved" ? "accepted" : "declined";
+            const alreadyInTarget = prev[targetStage].some((l) => l.id === leadId);
+            newData[targetStage] = alreadyInTarget
+                ? prev[targetStage].map((l) => (l.id === leadId ? updatedLead : l))
+                : [...prev[targetStage], updatedLead];
             return newData;
         });
     };
@@ -6528,6 +6556,7 @@ export const LoveyPortal = () => {
     const searchRef = useRef<HTMLInputElement>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [view, setView] = useState<"board" | "table">("table");
+    const [hideEmptyColumns, setHideEmptyColumns] = useState(false);
 
     const handleRefresh = () => {
         if (isRefreshing) return;
@@ -6678,13 +6707,16 @@ export const LoveyPortal = () => {
                                 searchRef={searchRef} searchQuery={searchQuery} onSearchChange={setSearchQuery}
                                 filters={{ dateRange, setDateRange, dateRangeLabel, setDateRangeLabel, amountRange, setAmountRange, sort, setSort, purpose, setPurpose, assignees, setAssignees, activeCount, onReset }}
                                 view={view} onViewChange={setView}
+                                hideEmpty={hideEmptyColumns} onToggleHideEmpty={() => setHideEmptyColumns(h => !h)}
                             />
                         </div>
                         <div ref={kanbanDrag.ref} {...kanbanDrag.dragProps} className="scrollbar-hide flex-1 overflow-x-auto overflow-y-hidden">
                             <div className="flex h-full gap-4 pl-5 pt-2">
-                                {columnConfig.map((col) => (
-                                    <KanbanColumn key={col.id} {...col} leads={filteredLeads[col.id]} isRefreshing={isRefreshing} />
-                                ))}
+                                {columnConfig
+                                    .filter(col => !hideEmptyColumns || filteredLeads[col.id].length > 0)
+                                    .map((col) => (
+                                        <KanbanColumn key={col.id} {...col} leads={filteredLeads[col.id]} isRefreshing={isRefreshing} />
+                                    ))}
                                 <div className="w-4 shrink-0" />
                             </div>
                         </div>
