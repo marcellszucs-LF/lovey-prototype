@@ -59,6 +59,7 @@ import {
     EyeOff,
     Eye,
     MarkerPin02,
+    Stars01,
 } from "@untitledui/icons";
 import { CalendarDate } from "@internationalized/date";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -1763,6 +1764,16 @@ const ActivityLog = ({ entries: initialEntries }: { entries: ActivityLogEntry[] 
 
             {/* Inner card */}
             <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-secondary bg-primary p-2 gap-0 min-h-0">
+                {/* AI Summary */}
+                <div className="mb-2 flex items-start gap-3 rounded-lg bg-[#e7e1f4] px-2 py-2">
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#bdafda] bg-[#e7e1f4]">
+                        <Stars01 className="size-3 text-[#594483]" />
+                    </div>
+                    <p className="pt-0.5 text-sm leading-5 text-[#362951]">
+                        Applicant is engaged and responsive. Bank statements requested on 20 March are still outstanding. Initial eligibility passed — recommended next step is to chase documents and progress to underwriting review.
+                    </p>
+                </div>
+
                 {/* Timeline */}
                 <div ref={timelineRef} className="scrollbar-hide flex-1 overflow-y-auto px-2 py-2">
                     {filteredEntries.map((entry, i) => {
