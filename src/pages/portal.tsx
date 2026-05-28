@@ -3263,48 +3263,54 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 {/* ── CCJs ── */}
                                 <InfoCard
                                     title="CCJs"
-                                    badge={
+                                    badge={CCJ_ROWS.length > 0 ? (
                                         <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
                                             <span className="text-center text-xs font-medium text-secondary">{CCJ_ROWS.length}</span>
                                         </div>
-                                    }
+                                    ) : undefined}
                                     raw
                                 >
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
-                                        {/* Header */}
-                                        <div className="flex border-b border-secondary">
-                                            <div className="flex h-11 flex-1 items-center pl-5 pr-4">
-                                                <span className="text-xs font-medium text-quaternary">Date</span>
-                                            </div>
-                                            <div className="flex h-11 flex-1 items-center px-4">
-                                                <span className="text-xs font-medium text-quaternary">Amount</span>
-                                            </div>
-                                            <div className="flex h-11 flex-1 items-center px-4">
-                                                <span className="text-xs font-medium text-quaternary">Status</span>
-                                            </div>
+                                    {CCJ_ROWS.length === 0 ? (
+                                        <div className="flex w-full items-center justify-center rounded-xl border border-secondary bg-primary px-5 py-8">
+                                            <span className="text-sm text-tertiary">This company has never had a CCJ</span>
                                         </div>
-                                        {/* Rows */}
-                                        {CCJ_ROWS.map((row, ri) => (
-                                            <div key={ri} className="flex items-center border-b border-secondary last:border-b-0">
-                                                <div className="flex h-12 flex-1 items-center pl-5 pr-4">
-                                                    <span className="text-sm text-tertiary">{row.date}</span>
+                                    ) : (
+                                        <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                            {/* Header */}
+                                            <div className="flex border-b border-secondary">
+                                                <div className="flex h-11 flex-1 items-center pl-5 pr-4">
+                                                    <span className="text-xs font-medium text-quaternary">Date</span>
                                                 </div>
-                                                <div className="flex h-12 flex-1 items-center px-4">
-                                                    <span className="text-sm text-tertiary">{row.amount}</span>
+                                                <div className="flex h-11 flex-1 items-center px-4">
+                                                    <span className="text-xs font-medium text-quaternary">Amount</span>
                                                 </div>
-                                                <div className="flex h-12 flex-1 items-center px-4">
-                                                    <span className={cx(
-                                                        "rounded-full border px-2 py-0.5 text-xs font-medium",
-                                                        row.status === "Satisfied"
-                                                            ? "border-utility-success-200 bg-utility-success-50 text-utility-success-700"
-                                                            : "border-utility-error-200 bg-utility-error-50 text-utility-error-700"
-                                                    )}>
-                                                        {row.status}
-                                                    </span>
+                                                <div className="flex h-11 flex-1 items-center px-4">
+                                                    <span className="text-xs font-medium text-quaternary">Status</span>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                            {/* Rows */}
+                                            {CCJ_ROWS.map((row, ri) => (
+                                                <div key={ri} className="flex items-center border-b border-secondary last:border-b-0">
+                                                    <div className="flex h-12 flex-1 items-center pl-5 pr-4">
+                                                        <span className="text-sm text-tertiary">{row.date}</span>
+                                                    </div>
+                                                    <div className="flex h-12 flex-1 items-center px-4">
+                                                        <span className="text-sm text-tertiary">{row.amount}</span>
+                                                    </div>
+                                                    <div className="flex h-12 flex-1 items-center px-4">
+                                                        <span className={cx(
+                                                            "rounded-full border px-2 py-0.5 text-xs font-medium",
+                                                            row.status === "Satisfied"
+                                                                ? "border-utility-success-200 bg-utility-success-50 text-utility-success-700"
+                                                                : "border-utility-error-200 bg-utility-error-50 text-utility-error-700"
+                                                        )}>
+                                                            {row.status}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </InfoCard>
 
                                 {/* ── PSC Information ── */}
