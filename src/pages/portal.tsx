@@ -3774,7 +3774,7 @@ const OverlayFieldWithAction = ({
     </div>
 );
 
-type OverlayTask = { id: number; desc: string; priority: string | null; due: string | null; assignee: string | null; completed: boolean };
+type OverlayTask = { id: number; originalId?: string; desc: string; priority: string | null; due: string | null; assignee: string | null; completed: boolean };
 
 const LeadTasksContext = createContext<Record<string, OverlayTask[]>>({});
 
@@ -4354,6 +4354,7 @@ const LeadOverlay = ({
     onTasksChange,
     hideNewTask = false,
     relatedTaskRows = [],
+    currentTaskId,
 }: {
     lead: LeadRow;
     leadIndex: number;
@@ -4366,6 +4367,7 @@ const LeadOverlay = ({
     onTasksChange?: (tasks: OverlayTask[]) => void;
     hideNewTask?: boolean;
     relatedTaskRows?: TaskRow[];
+    currentTaskId?: string;
 }) => {
     const [activeTab, setActiveTab] = useState<OverlayTab>("contact");
     const [noteText, setNoteText] = useState("");
@@ -4376,6 +4378,7 @@ const LeadOverlay = ({
     const [relatedTasks, setRelatedTasks] = useState<OverlayTask[]>(() =>
         relatedTaskRows.map((t, i) => ({
             id: -(i + 1),
+            originalId: t.id,
             desc: t.task,
             priority: t.priority,
             due: t.due,
@@ -4384,6 +4387,9 @@ const LeadOverlay = ({
         })),
     );
     const nextTaskId = useRef(initialTasks.length > 0 ? Math.max(...initialTasks.map(t => t.id)) + 1 : 0);
+    const currentTaskCompleted = currentTaskId
+        ? relatedTasks.some(t => t.originalId === currentTaskId && t.completed)
+        : false;
 
     const updateTasks = (next: OverlayTask[]) => {
         setTasks(next);
@@ -4585,7 +4591,7 @@ const LeadOverlay = ({
                         {/* Left panel */}
                         <div className="flex flex-1 flex-col overflow-y-auto min-w-0">
                             {/* New task */}
-                            {!hideNewTask && <div className="shrink-0 p-3">
+                            {(!hideNewTask || currentTaskCompleted) && <div className="shrink-0 p-3">
                                 <div className="flex flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
                                     <div className="px-5 pt-3 pb-2">
                                         <p className="text-sm font-semibold text-primary">New task</p>
@@ -6229,6 +6235,7 @@ const TasksPage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; isRefre
                 onPrev={() => openTaskIdx > 0 && setOpenTaskId(sorted[openTaskIdx - 1].id)}
                 onNext={() => openTaskIdx < sorted.length - 1 && setOpenTaskId(sorted[openTaskIdx + 1].id)}
                 hideNewTask
+                currentTaskId={openTask.id}
                 relatedTaskRows={TASKS_DATA.filter(t => t.contactName === openTask.contactName)}
             />
         )}
