@@ -3344,6 +3344,12 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     </div>
                                 </InfoCard>
 
+                                {/* ── Hometrack ── */}
+                                <InfoCard title="Hometrack">
+                                    <SummaryField label="Estimated value" value="£318,000"                                                              className="w-[calc(50%-6px)]" />
+                                    <SummaryField label="Address"         value="63, Ambleside Walk, Canvey Island, United Kingdom CV359EE"              className="w-[calc(50%-6px)]" />
+                                </InfoCard>
+
                                 {/* ── Company details ── */}
                                 <InfoCard title="Company details">
                                     <SummaryField label="Name"                     value={lead.company}        className="w-[calc(50%-6px)]" />
