@@ -2574,6 +2574,20 @@ const SCORE_CARD_ROWS = [
     { characteristic: "Directorships Failed", attribute: "0", partialScore: "0" },
 ];
 
+const ACTIVE_PAYMENTS_STATUS: Record<string, { bg: string; text: string; border: string }> = {
+    "0": { bg: "bg-[#ecfdf3]", text: "text-[#47cd89]", border: "border border-[#47cd89]" },
+    "2": { bg: "bg-[#fffaeb]", text: "text-[#fec84b]", border: "border border-[#fec84b]" },
+    "U": { bg: "bg-[#fffbf8]", text: "text-[#b7a99e]", border: "border border-[#b7a99e]" },
+    "D": { bg: "bg-[#fee4e2]", text: "text-[#d92d20]", border: "border border-[#f97066]" },
+};
+
+const ACTIVE_PAYMENTS_ROWS = [
+    { accountType: "Multi Communications Package", history: ["0","0","2","0","0","U","0","D","0","0","0","0"], payment: "£34",  balance: "£1085", repay: "2",   defaultDate: "12.09.2025." },
+    { accountType: "Student Loan",                 history: ["0","0","0","0","0","0"],                        payment: "N/A",  balance: "£206",  repay: "6",   defaultDate: null },
+    { accountType: "Unsecured Loan",               history: ["0","0","U","0","D","D","D"],                    payment: "£108", balance: "N/A",   repay: "N/A", defaultDate: "24.05.2026." },
+    { accountType: "Credit Card / Store Card",     history: ["0","0","0","0","0","0","0","0","0","0","0"],    payment: "N/A",  balance: "N/A",   repay: "N/A", defaultDate: null },
+];
+
 const CAIS_COLS = ["0", "1", "2", "3", "4", "5", "6", "U", "Def"] as const;
 type CaisCol = typeof CAIS_COLS[number];
 
@@ -3020,6 +3034,90 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 );
                                             })}
                                         </div>
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Active payments ── */}
+                                <InfoCard
+                                    title={`${lead.applicantName ?? "Applicant"}'s active payments`}
+                                    badge={
+                                        <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">
+                                            {ACTIVE_PAYMENTS_ROWS.length}
+                                        </span>
+                                    }
+                                    raw
+                                >
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                        {/* Header */}
+                                        <div className="flex border-b border-secondary">
+                                            <div className="flex h-11 w-52 shrink-0 items-center pl-5 pr-4">
+                                                <span className="text-xs font-medium text-quaternary">Account Type</span>
+                                            </div>
+                                            <div className="flex h-11 min-w-0 flex-1 items-center gap-1 overflow-hidden px-3">
+                                                <span className="text-xs font-medium text-quaternary">Status History (12m)</span>
+                                                <div className="group relative">
+                                                    <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
+                                                        <circle cx="8" cy="8" r="6.5" />
+                                                        <path d="M8 7v4M8 5.5h.01" strokeLinecap="round" />
+                                                    </svg>
+                                                    <div className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-primary_alt px-2 py-1 text-xs text-secondary opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+                                                        Each box is a month in ascending order
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Payment</span>
+                                            </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Current Balance</span>
+                                            </div>
+                                            <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Repay (m)</span>
+                                            </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Date of Default</span>
+                                            </div>
+                                        </div>
+                                        {/* Rows */}
+                                        {ACTIVE_PAYMENTS_ROWS.map((row, ri) => (
+                                            <div key={ri} className="flex items-center border-b border-secondary last:border-b-0">
+                                                <div className="flex h-12 w-52 shrink-0 items-center pl-5 pr-4">
+                                                    <span className="truncate text-sm text-primary">{row.accountType}</span>
+                                                </div>
+                                                {/* Status history — scrollable */}
+                                                <div className="flex h-12 min-w-0 flex-1 items-center gap-1 overflow-x-auto px-3 py-2 scrollbar-thin">
+                                                    {row.history.map((code, ci) => {
+                                                        const isLast = ci === row.history.length - 1;
+                                                        const s = ACTIVE_PAYMENTS_STATUS[code] ?? ACTIVE_PAYMENTS_STATUS["0"];
+                                                        return (
+                                                            <div
+                                                                key={ci}
+                                                                className={cx(
+                                                                    "flex size-6 shrink-0 items-center justify-center rounded-[4px] text-[10px] font-semibold",
+                                                                    s.bg,
+                                                                    s.text,
+                                                                    isLast && s.border,
+                                                                )}
+                                                            >
+                                                                {code}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.payment}</span>
+                                                </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.balance}</span>
+                                                </div>
+                                                <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.repay}</span>
+                                                </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.defaultDate ?? "—"}</span>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </InfoCard>
 
