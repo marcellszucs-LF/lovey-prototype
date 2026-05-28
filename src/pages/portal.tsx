@@ -2071,12 +2071,12 @@ const SummaryFieldAction = ({
     };
     const btnClass = "flex items-center justify-center rounded-lg border border-primary bg-primary p-2 shadow-xs transition hover:bg-primary_hover";
     return (
-        <div className="flex items-center justify-between">
-            <div className="flex flex-col">
+        <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-col">
                 <span className="text-sm text-tertiary">{label}</span>
                 <span
                     onClick={value ? handleCopy : undefined}
-                    className={cx("text-base font-semibold text-secondary", value && "cursor-pointer transition-colors hover:text-primary")}
+                    className={cx("truncate text-base font-semibold text-secondary", value && "cursor-pointer transition-colors hover:text-primary")}
                 >
                     {value ?? "—"}
                 </span>
@@ -2588,6 +2588,11 @@ const ACTIVE_PAYMENTS_ROWS = [
     { accountType: "Credit Card / Store Card",     offset: 1, history: ["0","0","0","0","0","0","0","0","0","0","0"],    payment: "N/A",  balance: "N/A",   repay: "N/A", defaultDate: null },
 ];
 
+const SETTLED_PAYMENTS_ROWS = [
+    { accountType: "Credit Card / Store Card", offset: 0, history: ["0","0","2","0","0","U","0","D","0","0","0","0"], payment: "£34",  balance: "£1085", repay: "24", settlementDate: "12.09.2025." },
+    { accountType: "Unsecured loan",           offset: 6, history: ["0","0","U","0","0","0"],                        payment: "N/A",  balance: "N/A",   repay: "6",  settlementDate: "24.05.2026." },
+];
+
 const CAIS_COLS = ["0", "1", "2", "3", "4", "5", "6", "U", "Def"] as const;
 type CaisCol = typeof CAIS_COLS[number];
 
@@ -2686,6 +2691,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
     const [deleteConfirm, setDeleteConfirm] = useState<{ filename: string; onConfirm: () => void } | null>(null);
     const [activePdfKey, setActivePdfKey] = useState<string | null>(null);
     const activePaymentsDrag = useDragScroll();
+    const settledPaymentsDrag = useDragScroll();
 
     useEffect(() => {
         if (!activePdfKey) return;
@@ -3122,6 +3128,93 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 </div>
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
                                                     <span className="text-sm text-primary">{row.defaultDate ?? "—"}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Settled payments ── */}
+                                <InfoCard
+                                    title={`${lead.applicantName ?? "Applicant"}'s settled payments`}
+                                    badge={
+                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                            <span className="text-center text-xs font-medium text-secondary">{SETTLED_PAYMENTS_ROWS.length}</span>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div ref={settledPaymentsDrag.ref} {...settledPaymentsDrag.dragProps} className="overflow-x-auto rounded-xl border border-secondary bg-primary select-none">
+                                        {/* Header */}
+                                        <div className="flex border-b border-secondary">
+                                            <div className="flex h-11 w-52 shrink-0 items-center pl-5 pr-4">
+                                                <span className="text-xs font-medium text-quaternary">Account Type</span>
+                                            </div>
+                                            <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
+                                                <span className="text-xs font-medium text-quaternary">Status History (12m)</span>
+                                                <div className="group relative">
+                                                    <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
+                                                        <circle cx="8" cy="8" r="6.5" />
+                                                        <path d="M8 7v4M8 5.5h.01" strokeLinecap="round" />
+                                                    </svg>
+                                                    <div className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-primary_alt px-2 py-1 text-xs text-secondary opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+                                                        Each box is a month in ascending order
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Payment</span>
+                                            </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Current Balance</span>
+                                            </div>
+                                            <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Repay (m)</span>
+                                            </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Settlement Date</span>
+                                            </div>
+                                        </div>
+                                        {/* Rows */}
+                                        {SETTLED_PAYMENTS_ROWS.map((row, ri) => (
+                                            <div key={ri} className="flex items-center border-b border-secondary last:border-b-0">
+                                                <div className="flex h-12 w-52 shrink-0 items-center pl-5 pr-4">
+                                                    <span className="truncate text-sm text-primary">{row.accountType}</span>
+                                                </div>
+                                                <div className="flex h-12 w-[356px] shrink-0 items-center gap-1 px-3 py-2">
+                                                    {Array.from({ length: row.offset }).map((_, ei) => (
+                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    ))}
+                                                    {row.history.map((code, ci) => {
+                                                        const s = ACTIVE_PAYMENTS_STATUS[code] ?? ACTIVE_PAYMENTS_STATUS["0"];
+                                                        return (
+                                                            <div
+                                                                key={ci}
+                                                                className={cx(
+                                                                    "flex size-6 shrink-0 items-center justify-center rounded-[4px] text-[10px] font-semibold",
+                                                                    s.bg,
+                                                                    s.text,
+                                                                )}
+                                                            >
+                                                                {code}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
+                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    ))}
+                                                </div>
+                                                <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.payment}</span>
+                                                </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.balance}</span>
+                                                </div>
+                                                <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.repay}</span>
+                                                </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.settlementDate}</span>
                                                 </div>
                                             </div>
                                         ))}
