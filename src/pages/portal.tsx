@@ -2582,10 +2582,10 @@ const ACTIVE_PAYMENTS_STATUS: Record<string, { bg: string; text: string; border:
 };
 
 const ACTIVE_PAYMENTS_ROWS = [
-    { accountType: "Multi Communications Package", history: ["0","0","2","0","0","U","0","D","0","0","0","0"], payment: "£34",  balance: "£1085", repay: "2",   defaultDate: "12.09.2025." },
-    { accountType: "Student Loan",                 history: ["0","0","0","0","0","0"],                        payment: "N/A",  balance: "£206",  repay: "6",   defaultDate: null },
-    { accountType: "Unsecured Loan",               history: ["0","0","U","0","D","D","D"],                    payment: "£108", balance: "N/A",   repay: "N/A", defaultDate: "24.05.2026." },
-    { accountType: "Credit Card / Store Card",     history: ["0","0","0","0","0","0","0","0","0","0","0"],    payment: "N/A",  balance: "N/A",   repay: "N/A", defaultDate: null },
+    { accountType: "Multi Communications Package", offset: 0, history: ["0","0","2","0","0","U","0","D","0","0","0","0"], payment: "£34",  balance: "£1085", repay: "2",   defaultDate: "12.09.2025." },
+    { accountType: "Student Loan",                 offset: 3, history: ["0","0","0","0","0","0"],                        payment: "N/A",  balance: "£206",  repay: "6",   defaultDate: null },
+    { accountType: "Unsecured Loan",               offset: 5, history: ["0","0","U","0","D","D","D"],                    payment: "£108", balance: "N/A",   repay: "N/A", defaultDate: "24.05.2026." },
+    { accountType: "Credit Card / Store Card",     offset: 1, history: ["0","0","0","0","0","0","0","0","0","0","0"],    payment: "N/A",  balance: "N/A",   repay: "N/A", defaultDate: null },
 ];
 
 const CAIS_COLS = ["0", "1", "2", "3", "4", "5", "6", "U", "Def"] as const;
@@ -3084,10 +3084,10 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 <div className="flex h-12 w-52 shrink-0 items-center pl-5 pr-4">
                                                     <span className="truncate text-sm text-primary">{row.accountType}</span>
                                                 </div>
-                                                {/* Status history — fixed 12-slot grid, right-aligned */}
+                                                {/* Status history — fixed 12-slot grid */}
                                                 <div className="flex h-12 w-[356px] shrink-0 items-center gap-1 px-3 py-2">
-                                                    {Array.from({ length: 12 - row.history.length }).map((_, ei) => (
-                                                        <div key={`e${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    {Array.from({ length: row.offset }).map((_, ei) => (
+                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
                                                     {row.history.map((code, ci) => {
                                                         const isLast = ci === row.history.length - 1;
@@ -3106,6 +3106,9 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                             </div>
                                                         );
                                                     })}
+                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
+                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    ))}
                                                 </div>
                                                 <div className="flex h-12 w-20 shrink-0 items-center justify-end px-4">
                                                     <span className="text-sm text-primary">{row.payment}</span>
