@@ -673,7 +673,7 @@ export const PanelCard = ({ title, badge, children, className, innerClassName }:
 const KanbanColumn = ({ label, leads, isRefreshing }: { id: LeadStage; label: string; leads: Lead[]; isRefreshing?: boolean }) => {
     const sorted = [...leads].sort((a, b) => parseTimeAgoMinutes(a.timeAgo) - parseTimeAgoMinutes(b.timeAgo));
     return (
-    <div className="scrollbar-hide min-w-80 flex-1 overflow-y-auto pb-4">
+    <div className="scrollbar-hide w-72 shrink-0 overflow-y-auto pb-4">
         <PanelCard
             title={label}
             badge={
