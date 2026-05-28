@@ -3245,12 +3245,6 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             <div className="flex h-11 w-52 shrink-0 items-center pl-5 pr-4">
                                                 <span className="text-xs font-medium text-quaternary">Account Type</span>
                                             </div>
-                                            <div className="flex h-11 w-36 shrink-0 items-center px-4">
-                                                <span className="text-xs font-medium text-quaternary">Creditor Type</span>
-                                            </div>
-                                            <div className="flex h-11 w-24 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Credit Limit</span>
-                                            </div>
                                             <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
                                                 <span className="text-xs font-medium text-quaternary">Account Status (12m)</span>
                                                 <Tooltip title="Each box is a month in ascending order" placement="bottom">
@@ -3261,6 +3255,12 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                         </svg>
                                                     </TooltipTrigger>
                                                 </Tooltip>
+                                            </div>
+                                            <div className="flex h-11 w-36 shrink-0 items-center px-4">
+                                                <span className="text-xs font-medium text-quaternary">Creditor Type</span>
+                                            </div>
+                                            <div className="flex h-11 w-24 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Credit Limit</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
                                                 <span className="text-xs font-medium text-quaternary">Current Balance</span>
@@ -3280,12 +3280,6 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                             <div key={ri} className="flex items-center border-b border-secondary last:border-b-0">
                                                 <div className="flex min-h-12 w-52 shrink-0 items-center py-3 pl-5 pr-4">
                                                     <span className="text-sm text-primary">{row.accountType}</span>
-                                                </div>
-                                                <div className="flex min-h-12 w-36 shrink-0 items-center px-4 py-3">
-                                                    <span className="text-sm text-primary">{row.creditorType}</span>
-                                                </div>
-                                                <div className="flex h-12 w-24 shrink-0 items-center justify-end px-4">
-                                                    <span className="text-sm text-primary">{row.creditLimit}</span>
                                                 </div>
                                                 {/* Account Status (12m) — fixed 12-slot grid */}
                                                 <div className="flex h-12 w-[356px] shrink-0 items-center gap-1 px-3 py-2">
@@ -3312,6 +3306,12 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                     {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
                                                         <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
                                                     ))}
+                                                </div>
+                                                <div className="flex min-h-12 w-36 shrink-0 items-center px-4 py-3">
+                                                    <span className="text-sm text-primary">{row.creditorType}</span>
+                                                </div>
+                                                <div className="flex h-12 w-24 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.creditLimit}</span>
                                                 </div>
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
                                                     <span className={cx("text-sm", row.balance === "N/A" ? "text-placeholder" : "text-primary")}>{row.balance}</span>
