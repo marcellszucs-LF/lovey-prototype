@@ -2685,6 +2685,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
     const [dragOver, setDragOver] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<{ filename: string; onConfirm: () => void } | null>(null);
     const [activePdfKey, setActivePdfKey] = useState<string | null>(null);
+    const activePaymentsDrag = useDragScroll();
 
     useEffect(() => {
         if (!activePdfKey) return;
@@ -3047,7 +3048,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     }
                                     raw
                                 >
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                    <div ref={activePaymentsDrag.ref} {...activePaymentsDrag.dragProps} className="overflow-x-auto rounded-xl border border-secondary bg-primary select-none">
                                         {/* Header */}
                                         <div className="flex border-b border-secondary">
                                             <div className="flex h-11 w-52 shrink-0 items-center pl-5 pr-4">
