@@ -2593,6 +2593,15 @@ const SETTLED_PAYMENTS_ROWS = [
     { accountType: "Unsecured loan",           offset: 6, history: ["0","0","U","0","0","0"],                        payment: "N/A",  balance: "N/A",   repay: "6",  settlementDate: "24.05.2026." },
 ];
 
+const ALL_GREEN_12 = ["0","0","0","0","0","0","0","0","0","0","0","0"] as const;
+
+const CAIS_ACCOUNTS_ROWS = [
+    { accountType: "Hire purchase (incl. Lease Purchase / Conditional sale)", creditorType: "Leasing",         creditLimit: "£0",      offset: 0, history: [...ALL_GREEN_12], balance: "£1,413", repaymentPeriod: "024", monthlyRepayment: "£210", startDate: "2024-12-05" },
+    { accountType: "Credit card / Store card",                                 creditorType: "Finance Company", creditLimit: "£12,000", offset: 0, history: [...ALL_GREEN_12], balance: "£24",    repaymentPeriod: "N/A", monthlyRepayment: "N/A",  startDate: "2024-10-16" },
+    { accountType: "Fixed term deferred payment",                              creditorType: "Bank",            creditLimit: "£0",      offset: 0, history: [...ALL_GREEN_12], balance: "£1,500", repaymentPeriod: "072", monthlyRepayment: "£253", startDate: "2020-10-05" },
+    { accountType: "Current accounts",                                         creditorType: "Bank",            creditLimit: "£0",      offset: 0, history: [...ALL_GREEN_12], balance: "£0",     repaymentPeriod: "N/A", monthlyRepayment: "N/A",  startDate: "2019-09-13" },
+];
+
 const CAIS_COLS = ["0", "1", "2", "3", "4", "5", "6", "U", "Def"] as const;
 type CaisCol = typeof CAIS_COLS[number];
 
@@ -2692,6 +2701,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
     const [activePdfKey, setActivePdfKey] = useState<string | null>(null);
     const activePaymentsDrag = useDragScroll();
     const settledPaymentsDrag = useDragScroll();
+    const caisAccountsDrag = useDragScroll();
 
     useEffect(() => {
         if (!activePdfKey) return;
@@ -3213,6 +3223,107 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 </div>
                                                 <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
                                                     <span className="text-sm text-primary">{row.settlementDate}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Company CAIS Accounts Details ── */}
+                                <InfoCard
+                                    title="Company CAIS Accounts Details"
+                                    badge={
+                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                            <span className="text-center text-xs font-medium text-secondary">{CAIS_ACCOUNTS_ROWS.length}</span>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div ref={caisAccountsDrag.ref} {...caisAccountsDrag.dragProps} className="overflow-x-auto rounded-xl border border-secondary bg-primary select-none">
+                                        {/* Header */}
+                                        <div className="flex border-b border-secondary">
+                                            <div className="flex h-11 w-52 shrink-0 items-center pl-5 pr-4">
+                                                <span className="text-xs font-medium text-quaternary">Account Type</span>
+                                            </div>
+                                            <div className="flex h-11 w-36 shrink-0 items-center px-4">
+                                                <span className="text-xs font-medium text-quaternary">Creditor Type</span>
+                                            </div>
+                                            <div className="flex h-11 w-24 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Credit Limit</span>
+                                            </div>
+                                            <div className="flex h-11 w-[356px] shrink-0 items-center gap-1 px-3">
+                                                <span className="text-xs font-medium text-quaternary">Account Status (12m)</span>
+                                                <Tooltip title="Each box is a month in ascending order" placement="bottom">
+                                                    <TooltipTrigger>
+                                                        <svg className="size-3.5 text-quaternary" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
+                                                            <circle cx="8" cy="8" r="6.5" />
+                                                            <path d="M8 7v4M8 5.5h.01" strokeLinecap="round" />
+                                                        </svg>
+                                                    </TooltipTrigger>
+                                                </Tooltip>
+                                            </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Current Balance</span>
+                                            </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Repayment Period</span>
+                                            </div>
+                                            <div className="flex h-11 w-32 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Monthly Repayment</span>
+                                            </div>
+                                            <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
+                                                <span className="text-xs font-medium text-quaternary">Start Date</span>
+                                            </div>
+                                        </div>
+                                        {/* Rows */}
+                                        {CAIS_ACCOUNTS_ROWS.map((row, ri) => (
+                                            <div key={ri} className="flex items-center border-b border-secondary last:border-b-0">
+                                                <div className="flex min-h-12 w-52 shrink-0 items-center py-3 pl-5 pr-4">
+                                                    <span className="text-sm text-primary">{row.accountType}</span>
+                                                </div>
+                                                <div className="flex min-h-12 w-36 shrink-0 items-center px-4 py-3">
+                                                    <span className="text-sm text-primary">{row.creditorType}</span>
+                                                </div>
+                                                <div className="flex h-12 w-24 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.creditLimit}</span>
+                                                </div>
+                                                {/* Account Status (12m) — fixed 12-slot grid */}
+                                                <div className="flex h-12 w-[356px] shrink-0 items-center gap-1 px-3 py-2">
+                                                    {Array.from({ length: row.offset }).map((_, ei) => (
+                                                        <div key={`l${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    ))}
+                                                    {row.history.map((code, ci) => {
+                                                        const isCurrentMonth = ci === row.history.length - 1 && row.offset + row.history.length === 12;
+                                                        const s = ACTIVE_PAYMENTS_STATUS[code] ?? ACTIVE_PAYMENTS_STATUS["0"];
+                                                        return (
+                                                            <div
+                                                                key={ci}
+                                                                className={cx(
+                                                                    "flex size-6 shrink-0 items-center justify-center rounded-[4px] text-[10px] font-semibold",
+                                                                    s.bg,
+                                                                    s.text,
+                                                                    isCurrentMonth && s.border,
+                                                                )}
+                                                            >
+                                                                {code}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {Array.from({ length: 12 - row.offset - row.history.length }).map((_, ei) => (
+                                                        <div key={`r${ei}`} className="size-6 shrink-0 rounded-[4px]" />
+                                                    ))}
+                                                </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className={cx("text-sm", row.balance === "N/A" ? "text-placeholder" : "text-primary")}>{row.balance}</span>
+                                                </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className={cx("text-sm", row.repaymentPeriod === "N/A" ? "text-placeholder" : "text-primary")}>{row.repaymentPeriod}</span>
+                                                </div>
+                                                <div className="flex h-12 w-32 shrink-0 items-center justify-end px-4">
+                                                    <span className={cx("text-sm", row.monthlyRepayment === "N/A" ? "text-placeholder" : "text-primary")}>{row.monthlyRepayment}</span>
+                                                </div>
+                                                <div className="flex h-12 w-28 shrink-0 items-center justify-end px-4">
+                                                    <span className="text-sm text-primary">{row.startDate}</span>
                                                 </div>
                                             </div>
                                         ))}
