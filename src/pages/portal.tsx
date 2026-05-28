@@ -4611,7 +4611,7 @@ const LeadOverlay = ({
                         {/* Left panel */}
                         <div className="flex flex-1 flex-col overflow-y-auto min-w-0">
                             {/* New task */}
-                            {(!hideNewTask || currentTaskCompleted) && <div className="shrink-0 p-3" style={{ order: hideNewTask ? 2 : 0 }}>
+                            {(!hideNewTask || currentTaskCompleted) && <div className={cx("shrink-0 p-3", currentTaskCompleted && "animate-in fade-in slide-in-from-bottom-2 duration-300")} style={{ order: hideNewTask ? 2 : 0 }}>
                                 <div className="flex flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
                                     <div className="px-5 pt-3 pb-2">
                                         <p className="text-sm font-semibold text-primary">New task</p>
