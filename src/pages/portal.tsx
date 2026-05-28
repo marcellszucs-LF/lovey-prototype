@@ -3082,19 +3082,19 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 </Tooltip>
                                             </div>
                                             <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Payment</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Payment</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Current Balance</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Current Balance</span>
                                             </div>
                                             <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Repay (m)</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Repay (m)</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Date of Default</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Date of Default</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Start Date</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Start Date</span>
                                             </div>
                                         </div>
                                         {/* Rows */}
@@ -3177,19 +3177,19 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 </Tooltip>
                                             </div>
                                             <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Payment</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Payment</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Current Balance</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Current Balance</span>
                                             </div>
                                             <div className="flex h-11 w-20 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Repay (m)</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Repay (m)</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Settlement Date</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Settlement Date</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Start Date</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Start Date</span>
                                             </div>
                                         </div>
                                         {/* Rows */}
@@ -3269,22 +3269,22 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                                 </Tooltip>
                                             </div>
                                             <div className="flex h-11 w-36 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Creditor Type</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Creditor Type</span>
                                             </div>
                                             <div className="flex h-11 w-24 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Credit Limit</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Credit Limit</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Current Balance</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Current Balance</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Repayment Period</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Repayment Period</span>
                                             </div>
                                             <div className="flex h-11 w-32 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Monthly Repayment</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Monthly Repayment</span>
                                             </div>
                                             <div className="flex h-11 w-28 shrink-0 items-center justify-end px-4">
-                                                <span className="text-xs font-medium text-quaternary">Start Date</span>
+                                                <span className="text-right text-xs font-medium text-quaternary">Start Date</span>
                                             </div>
                                         </div>
                                         {/* Rows */}
