@@ -4828,27 +4828,27 @@ const LeadOverlay = ({
                                 )}
                             </div>}
 
-                            {/* Tasks view — related tasks + lead summary */}
+                            {/* Tasks view — task list */}
+                            {hideNewTask && relatedTasks.length > 0 && (
+                                <div className="shrink-0 flex flex-col gap-2 p-3 pb-0">
+                                    <p className="px-2 text-sm font-semibold text-primary">Tasks</p>
+                                    <div className="flex flex-col gap-2">
+                                        {relatedTasks.map(task => (
+                                            <AnimatedTaskCard
+                                                key={task.id}
+                                                task={task}
+                                                onComplete={() => setRelatedTasks(ts => ts.map(t => t.id === task.id ? { ...t, completed: true } : t))}
+                                                onRemove={() => setRelatedTasks(ts => ts.filter(t => t.id !== task.id))}
+                                                onUpdate={updates => setRelatedTasks(ts => ts.map(t => t.id === task.id ? { ...t, ...updates } : t))}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tasks view — lead summary (rendered after new-task pane) */}
                             {hideNewTask && (
                                 <div className="shrink-0 flex flex-col gap-3 p-3 pb-0">
-                                    {/* Related tasks */}
-                                    {relatedTasks.length > 0 && (
-                                        <div className="flex flex-col gap-2">
-                                            <p className="px-2 text-sm font-semibold text-primary">Tasks</p>
-                                            <div className="flex flex-col gap-2">
-                                                {relatedTasks.map(task => (
-                                                    <AnimatedTaskCard
-                                                        key={task.id}
-                                                        task={task}
-                                                        onComplete={() => setRelatedTasks(ts => ts.map(t => t.id === task.id ? { ...t, completed: true } : t))}
-                                                        onRemove={() => setRelatedTasks(ts => ts.filter(t => t.id !== task.id))}
-                                                        onUpdate={updates => setRelatedTasks(ts => ts.map(t => t.id === task.id ? { ...t, ...updates } : t))}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
                                     {/* Lead quick summary */}
                                     <div className="flex flex-col gap-0.5 rounded-xl bg-secondary_subtle shadow-xs">
                                         <div className="rounded-xl border border-secondary bg-primary px-5 pt-5 pb-6 shadow-xs">
