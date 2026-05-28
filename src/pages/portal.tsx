@@ -2824,236 +2824,6 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     <Badge type="pill-color" color="success" size="sm">PSC Public Gazette</Badge>
                                 </div>
 
-                                {/* ── Rule Outcomes ── */}
-                                <InfoCard
-                                    title="Rule Outcomes"
-                                    badge={
-                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
-                                            <span className="text-center text-xs font-medium text-secondary">3</span>
-                                        </div>
-                                    }
-                                    raw
-                                >
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
-                                        <div className="flex">
-                                            <div className="flex shrink-0 flex-col">
-                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
-                                                    <span className="text-xs font-semibold text-quaternary">Rule</span>
-                                                </div>
-                                                {RULE_OUTCOMES.map(({ rule, muted }) => (
-                                                    <div key={rule} className="flex h-14 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
-                                                        <span className={cx("whitespace-nowrap text-sm font-medium", muted ? "text-tertiary" : "text-secondary")}>{rule}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="flex min-w-0 flex-1 flex-col">
-                                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
-                                                    <span className="text-xs font-semibold text-quaternary">Message</span>
-                                                </div>
-                                                {RULE_OUTCOMES.map(({ rule, message }) => (
-                                                    <div key={rule} className="flex h-14 items-center border-b border-secondary px-6 last:border-b-0">
-                                                        {message && <span className="text-sm font-medium text-secondary">{message}</span>}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </InfoCard>
-
-                                {/* ── Score card ── */}
-                                <InfoCard title="Score card" raw>
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
-                                        <div className="flex items-center gap-2 bg-utility-success-50 px-5 py-2">
-                                            <span className="whitespace-nowrap text-[48px] font-bold leading-[60px] tracking-[-0.96px] text-success-primary">15.9</span>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-secondary">Combined Score</span>
-                                                <span className="text-sm font-medium text-quaternary">(lower is better)</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex border-t border-secondary">
-                                            <div className="flex min-w-0 flex-1 flex-col">
-                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
-                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Characteristic</span>
-                                                </div>
-                                                {SCORE_CARD_ROWS.map(({ characteristic }) => (
-                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
-                                                        <span className="whitespace-nowrap text-sm font-medium text-tertiary">{characteristic}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="flex min-w-0 flex-1 flex-col">
-                                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
-                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Attribute</span>
-                                                </div>
-                                                {SCORE_CARD_ROWS.map(({ characteristic, attribute }) => (
-                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary px-6 last:border-b-0">
-                                                        <span className="text-sm text-tertiary">{attribute}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="flex shrink-0 flex-col">
-                                                <div className="flex h-11 items-center justify-end border-b border-secondary bg-primary px-6">
-                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Partial Score</span>
-                                                </div>
-                                                {SCORE_CARD_ROWS.map(({ characteristic, partialScore }) => (
-                                                    <div key={characteristic} className="flex h-12 items-center justify-end border-b border-secondary px-6 last:border-b-0">
-                                                        <span className="text-sm font-semibold text-success-primary">{partialScore}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </InfoCard>
-
-                                {/* ── Wiser Funding Scores ── */}
-                                <InfoCard
-                                    title="Wiser Funding Scores"
-                                    badge={
-                                        <div className="flex items-center gap-2 rounded-sm border border-secondary px-1.5 py-0.5 shadow-xs">
-                                            <div className="flex items-center gap-1">
-                                                <div className="h-[4px] w-[12px] rounded-full bg-[#594483]" />
-                                                <span className="text-xs text-tertiary">Company</span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <div className="flex gap-[2px]">
-                                                    {[0,1,2].map(i => <span key={i} className="size-[4px] shrink-0 rounded-full bg-[#a18fc6]" />)}
-                                                </div>
-                                                <span className="text-xs text-tertiary">Industry Average</span>
-                                            </div>
-                                        </div>
-                                    }
-                                    raw
-                                >
-                                    <div className="overflow-visible rounded-xl border border-secondary bg-primary">
-                                        <WiserFundingChart />
-                                    </div>
-                                </InfoCard>
-
-                                {/* ── PSC Credit Utilisation ── */}
-                                <InfoCard
-                                    title="PSC Credit Utilisation"
-                                    badge={
-                                        <div className="flex items-center gap-2 rounded-sm border border-secondary px-1.5 py-0.5 shadow-xs">
-                                            <div className="flex items-center gap-1">
-                                                <div className="h-[4px] w-[12px] rounded-full bg-[#594483]" />
-                                                <span className="text-xs text-tertiary">Balance</span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <div className="flex gap-[2px]">
-                                                    {[0,1,2].map(i => <span key={i} className="size-[4px] shrink-0 rounded-full bg-[#a08cca]" />)}
-                                                </div>
-                                                <span className="text-xs text-tertiary">Credit Limit</span>
-                                            </div>
-                                        </div>
-                                    }
-                                    raw
-                                >
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary py-4">
-                                        {CREDIT_ACCOUNTS.map((account, i) => (
-                                            <div key={i} className={cx("px-5 pt-8", i < CREDIT_ACCOUNTS.length - 1 && "border-b border-secondary pb-6")}>
-                                                <CreditLineChart account={account} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </InfoCard>
-
-                                {/* ── PSC Information ── */}
-                                <InfoCard
-                                    title="PSC Information"
-                                    badge={
-                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
-                                            <span className="text-center text-xs font-medium text-secondary">3</span>
-                                        </div>
-                                    }
-                                    raw
-                                >
-                                    <div className="flex flex-col rounded-xl border border-secondary bg-primary px-5">
-                                        {PSC_CONTACTS.map((contact, i) => (
-                                            <div key={contact.name} className={cx("flex flex-col gap-3 py-5", i > 0 && "border-t border-secondary")}>
-                                                {/* Contact Name + Email */}
-                                                <div className="flex flex-wrap gap-3">
-                                                    <div className="flex flex-col w-[calc(50%-6px)]">
-                                                        <span className="text-sm text-tertiary">Contact Name</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-base font-semibold text-secondary">{contact.name}</span>
-                                                            {contact.isApplicant && <Badge type="pill-color" color="brand" size="sm">Applicant</Badge>}
-                                                        </div>
-                                                    </div>
-                                                    <SummaryField label="Email"                       value={contact.email}         className="w-[calc(50%-6px)]" />
-                                                    <SummaryField label="Phone"                       value={contact.phone}         className="w-[calc(50%-6px)]" />
-                                                    <SummaryField label="Date of Birth"               value={contact.dob}           className="w-[calc(50%-6px)]" />
-                                                    <SummaryField label="Shareholdings"               value={contact.shareholdings} className="w-[calc(50%-6px)]" />
-                                                    <SummaryField label="Anti Money Laundering Check" value={contact.aml}           className="w-[calc(50%-6px)]" />
-                                                </div>
-                                                {/* Linked Companies */}
-                                                <SummaryField label="Linked Companies" value={contact.linkedCompanies} />
-                                                {/* Current Companies */}
-                                                {contact.currentCompanies.length > 0 && (
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <span className="text-sm text-tertiary">Current Companies</span>
-                                                        {contact.currentCompanies.map(c => (
-                                                            <div key={c.name} className="flex items-baseline justify-between">
-                                                                <span className="text-base font-semibold text-secondary">{c.name}</span>
-                                                                <span className="text-sm text-tertiary">{c.dates}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {/* Past Companies */}
-                                                {contact.pastCompanies.length > 0 && (
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <span className="text-sm text-tertiary">Past Companies</span>
-                                                        {contact.pastCompanies.map(c => (
-                                                            <div key={c.name} className="flex items-baseline justify-between">
-                                                                <span className="text-base font-semibold text-secondary">{c.name}</span>
-                                                                <span className="text-sm text-tertiary">{c.dates}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </InfoCard>
-
-                                {/* ── Company Payments CAIS summary ── */}
-                                <InfoCard title="Company Payments - CAIS summary" raw>
-                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
-                                        <div className="flex">
-                                            {/* Date column */}
-                                            <div className="flex shrink-0 flex-col">
-                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6" />
-                                                {CAIS_ROWS.map(({ date }) => (
-                                                    <div key={date} className="flex h-12 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
-                                                        <span className="whitespace-nowrap text-sm text-quaternary">{date}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            {/* Value columns */}
-                                            {CAIS_COLS.map((col) => {
-                                                const type = caisColType(col);
-                                                return (
-                                                    <div key={col} className="flex flex-1 flex-col">
-                                                        <div className="flex h-11 items-center justify-center border-b border-secondary bg-primary px-4">
-                                                            <span className="text-xs text-quaternary">{col}</span>
-                                                        </div>
-                                                        {CAIS_ROWS.map(({ date, values }) => {
-                                                            const v = values[col];
-                                                            const bg = v ? (CAIS_BG[type][v] ?? CAIS_BG[type][6]) : "";
-                                                            const text = v ? (v >= 6 ? "text-white" : CAIS_TEXT[type]) : "";
-                                                            return (
-                                                                <div key={date} className={cx("flex h-12 items-center justify-center border-b border-secondary px-4 last:border-b-0", bg)}>
-                                                                    {v != null && <span className={cx("text-sm font-semibold", text)}>{v}</span>}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </InfoCard>
-
                                 {/* ── Active payments ── */}
                                 <InfoCard
                                     title={`${lead.applicantName ?? "Applicant"}'s active payments`}
@@ -3243,6 +3013,117 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     </div>
                                 </InfoCard>
 
+                                {/* ── Score card ── */}
+                                <InfoCard title="Score card" raw>
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                        <div className="flex items-center gap-2 bg-utility-success-50 px-5 py-2">
+                                            <span className="whitespace-nowrap text-[48px] font-bold leading-[60px] tracking-[-0.96px] text-success-primary">15.9</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-secondary">Combined Score</span>
+                                                <span className="text-sm font-medium text-quaternary">(lower is better)</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex border-t border-secondary">
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Characteristic</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
+                                                        <span className="whitespace-nowrap text-sm font-medium text-tertiary">{characteristic}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Attribute</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic, attribute }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center border-b border-secondary px-6 last:border-b-0">
+                                                        <span className="text-sm text-tertiary">{attribute}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex shrink-0 flex-col">
+                                                <div className="flex h-11 items-center justify-end border-b border-secondary bg-primary px-6">
+                                                    <span className="whitespace-nowrap text-xs font-semibold text-quaternary">Partial Score</span>
+                                                </div>
+                                                {SCORE_CARD_ROWS.map(({ characteristic, partialScore }) => (
+                                                    <div key={characteristic} className="flex h-12 items-center justify-end border-b border-secondary px-6 last:border-b-0">
+                                                        <span className="text-sm font-semibold text-success-primary">{partialScore}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Company Payments CAIS summary ── */}
+                                <InfoCard title="Company Payments - CAIS summary" raw>
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                        <div className="flex">
+                                            {/* Date column */}
+                                            <div className="flex shrink-0 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6" />
+                                                {CAIS_ROWS.map(({ date }) => (
+                                                    <div key={date} className="flex h-12 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
+                                                        <span className="whitespace-nowrap text-sm text-quaternary">{date}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {/* Value columns */}
+                                            {CAIS_COLS.map((col) => {
+                                                const type = caisColType(col);
+                                                return (
+                                                    <div key={col} className="flex flex-1 flex-col">
+                                                        <div className="flex h-11 items-center justify-center border-b border-secondary bg-primary px-4">
+                                                            <span className="text-xs text-quaternary">{col}</span>
+                                                        </div>
+                                                        {CAIS_ROWS.map(({ date, values }) => {
+                                                            const v = values[col];
+                                                            const bg = v ? (CAIS_BG[type][v] ?? CAIS_BG[type][6]) : "";
+                                                            const text = v ? (v >= 6 ? "text-white" : CAIS_TEXT[type]) : "";
+                                                            return (
+                                                                <div key={date} className={cx("flex h-12 items-center justify-center border-b border-secondary px-4 last:border-b-0", bg)}>
+                                                                    {v != null && <span className={cx("text-sm font-semibold", text)}>{v}</span>}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </InfoCard>
+
+                                <InfoCard title="Documents">
+                                    <SummaryField label="Status" value="No documents uploaded" className="w-full" />
+                                </InfoCard>
+
+                                {/* ── Wiser Funding Scores ── */}
+                                <InfoCard
+                                    title="Wiser Funding Scores"
+                                    badge={
+                                        <div className="flex items-center gap-2 rounded-sm border border-secondary px-1.5 py-0.5 shadow-xs">
+                                            <div className="flex items-center gap-1">
+                                                <div className="h-[4px] w-[12px] rounded-full bg-[#594483]" />
+                                                <span className="text-xs text-tertiary">Company</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <div className="flex gap-[2px]">
+                                                    {[0,1,2].map(i => <span key={i} className="size-[4px] shrink-0 rounded-full bg-[#a18fc6]" />)}
+                                                </div>
+                                                <span className="text-xs text-tertiary">Industry Average</span>
+                                            </div>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div className="overflow-visible rounded-xl border border-secondary bg-primary">
+                                        <WiserFundingChart />
+                                    </div>
+                                </InfoCard>
+
                                 {/* ── Company CAIS Accounts Details ── */}
                                 <InfoCard
                                     title="Company CAIS Accounts Details"
@@ -3344,10 +3225,133 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     </div>
                                 </InfoCard>
 
+                                {/* ── PSC Credit Utilisation ── */}
+                                <InfoCard
+                                    title="PSC Credit Utilisation"
+                                    badge={
+                                        <div className="flex items-center gap-2 rounded-sm border border-secondary px-1.5 py-0.5 shadow-xs">
+                                            <div className="flex items-center gap-1">
+                                                <div className="h-[4px] w-[12px] rounded-full bg-[#594483]" />
+                                                <span className="text-xs text-tertiary">Balance</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <div className="flex gap-[2px]">
+                                                    {[0,1,2].map(i => <span key={i} className="size-[4px] shrink-0 rounded-full bg-[#a08cca]" />)}
+                                                </div>
+                                                <span className="text-xs text-tertiary">Credit Limit</span>
+                                            </div>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary py-4">
+                                        {CREDIT_ACCOUNTS.map((account, i) => (
+                                            <div key={i} className={cx("px-5 pt-8", i < CREDIT_ACCOUNTS.length - 1 && "border-b border-secondary pb-6")}>
+                                                <CreditLineChart account={account} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </InfoCard>
+
                                 {/* ── Hometrack ── */}
                                 <InfoCard title="Hometrack">
                                     <SummaryField label="Estimated value" value="£318,000"                                                              className="w-[calc(50%-6px)]" />
                                     <SummaryField label="Address"         value="63, Ambleside Walk, Canvey Island, United Kingdom CV359EE"              className="w-[calc(50%-6px)]" />
+                                </InfoCard>
+
+                                {/* ── PSC Information ── */}
+                                <InfoCard
+                                    title="PSC Information"
+                                    badge={
+                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                            <span className="text-center text-xs font-medium text-secondary">3</span>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div className="flex flex-col rounded-xl border border-secondary bg-primary px-5">
+                                        {PSC_CONTACTS.map((contact, i) => (
+                                            <div key={contact.name} className={cx("flex flex-col gap-3 py-5", i > 0 && "border-t border-secondary")}>
+                                                {/* Contact Name + Email */}
+                                                <div className="flex flex-wrap gap-3">
+                                                    <div className="flex flex-col w-[calc(50%-6px)]">
+                                                        <span className="text-sm text-tertiary">Contact Name</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-base font-semibold text-secondary">{contact.name}</span>
+                                                            {contact.isApplicant && <Badge type="pill-color" color="brand" size="sm">Applicant</Badge>}
+                                                        </div>
+                                                    </div>
+                                                    <SummaryField label="Email"                       value={contact.email}         className="w-[calc(50%-6px)]" />
+                                                    <SummaryField label="Phone"                       value={contact.phone}         className="w-[calc(50%-6px)]" />
+                                                    <SummaryField label="Date of Birth"               value={contact.dob}           className="w-[calc(50%-6px)]" />
+                                                    <SummaryField label="Shareholdings"               value={contact.shareholdings} className="w-[calc(50%-6px)]" />
+                                                    <SummaryField label="Anti Money Laundering Check" value={contact.aml}           className="w-[calc(50%-6px)]" />
+                                                </div>
+                                                {/* Linked Companies */}
+                                                <SummaryField label="Linked Companies" value={contact.linkedCompanies} />
+                                                {/* Current Companies */}
+                                                {contact.currentCompanies.length > 0 && (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-sm text-tertiary">Current Companies</span>
+                                                        {contact.currentCompanies.map(c => (
+                                                            <div key={c.name} className="flex items-baseline justify-between">
+                                                                <span className="text-base font-semibold text-secondary">{c.name}</span>
+                                                                <span className="text-sm text-tertiary">{c.dates}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {/* Past Companies */}
+                                                {contact.pastCompanies.length > 0 && (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-sm text-tertiary">Past Companies</span>
+                                                        {contact.pastCompanies.map(c => (
+                                                            <div key={c.name} className="flex items-baseline justify-between">
+                                                                <span className="text-base font-semibold text-secondary">{c.name}</span>
+                                                                <span className="text-sm text-tertiary">{c.dates}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </InfoCard>
+
+                                {/* ── Rule Outcomes ── */}
+                                <InfoCard
+                                    title="Rule Outcomes"
+                                    badge={
+                                        <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                            <span className="text-center text-xs font-medium text-secondary">3</span>
+                                        </div>
+                                    }
+                                    raw
+                                >
+                                    <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+                                        <div className="flex">
+                                            <div className="flex shrink-0 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary pl-5 pr-6">
+                                                    <span className="text-xs font-semibold text-quaternary">Rule</span>
+                                                </div>
+                                                {RULE_OUTCOMES.map(({ rule, muted }) => (
+                                                    <div key={rule} className="flex h-14 items-center border-b border-secondary pl-5 pr-6 last:border-b-0">
+                                                        <span className={cx("whitespace-nowrap text-sm font-medium", muted ? "text-tertiary" : "text-secondary")}>{rule}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
+                                                    <span className="text-xs font-semibold text-quaternary">Message</span>
+                                                </div>
+                                                {RULE_OUTCOMES.map(({ rule, message }) => (
+                                                    <div key={rule} className="flex h-14 items-center border-b border-secondary px-6 last:border-b-0">
+                                                        {message && <span className="text-sm font-medium text-secondary">{message}</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </InfoCard>
 
                                 {/* ── Company details ── */}
@@ -3364,10 +3368,6 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     <SummaryField label="Loan Term"    value={`${lead.termMonths} months`}     className="w-[calc(50%-6px)]" />
                                     <SummaryField label="Loan Purpose" value={lead.purpose}                    className="w-[calc(50%-6px)]" />
                                     <SummaryField label="Submitted"    value={`${lead.timeAgo} ago`}           className="w-[calc(50%-6px)]" />
-                                </InfoCard>
-
-                                <InfoCard title="Documents">
-                                    <SummaryField label="Status" value="No documents uploaded" className="w-full" />
                                 </InfoCard>
                             </>
                         )}
