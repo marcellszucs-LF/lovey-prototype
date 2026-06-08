@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
@@ -10,6 +10,8 @@ import {
     ArrowUp,
     Flag01,
     BankNote01,
+    DotsVertical,
+    CornerDownRight,
     CheckDone01,
     ChevronDown,
     Clipboard,
@@ -60,7 +62,20 @@ import {
     Eye,
     MarkerPin02,
     Stars01,
+    Save01,
+    Plus,
 } from "@untitledui/icons";
+import {
+    DndContext,
+    DragOverlay,
+    PointerSensor,
+    useDndContext,
+    useDraggable,
+    useDroppable,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { CalendarDate } from "@internationalized/date";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Badge, BadgeWithDot } from "@/components/base/badges/badges";
@@ -189,9 +204,9 @@ const navSections: SidebarNavSection[] = [
     {
         heading: "Atlas",
         items: [
-            { label: "Brokers",        href: "#", icon: Users01,      disabled: true },
-            { label: "Underwriters",   href: "#", icon: FaceIdSquare, disabled: true },
-            { label: "Archived users", href: "#", icon: UsersX,       disabled: true },
+            { label: "Brokers",        href: "/portal/brokers", icon: Users01 },
+            { label: "Underwriters",   href: "/portal/underwriters", icon: FaceIdSquare },
+            { label: "Archived users", href: "/portal/archived", icon: UsersX },
         ],
     },
 ];
@@ -242,8 +257,8 @@ const SidebarItem = ({
                         item.disabled
                             ? "pointer-events-none opacity-30"
                             : isLogout
-                                ? "text-fg-quaternary hover:bg-error-primary hover:text-fg-error-primary"
-                                : "text-fg-quaternary hover:bg-active",
+                                ? "text-fg-secondary hover:bg-error-primary hover:text-fg-error-primary"
+                                : "text-fg-secondary hover:bg-active",
                         isActive && "bg-active text-fg-secondary",
                     )}
                 >
@@ -273,8 +288,8 @@ const SidebarItem = ({
                     item.disabled
                         ? "pointer-events-none opacity-30"
                         : isLogout
-                            ? "text-fg-quaternary hover:bg-error-primary hover:text-fg-error-primary"
-                            : "text-fg-quaternary hover:bg-active",
+                            ? "text-fg-secondary hover:bg-error-primary hover:text-fg-error-primary"
+                            : "text-fg-secondary hover:bg-active",
                     isActive && "bg-active text-fg-secondary",
                 )}
             >
@@ -2156,17 +2171,46 @@ const DecisionAccordionItem = ({
     );
 };
 
-const DecisionTab = ({ lead, onDecision, existingDecision }: { lead: Lead; onDecision: (d: "approved" | "declined") => void; existingDecision?: "approved" | "declined" }) => {
+const REVERT_STAGES: { id: LeadStage; label: string }[] = [
+    { id: "awaiting_customer", label: "Waiting for customer" },
+    { id: "ready_to_review",   label: "Ready to review"     },
+    { id: "awaiting_accounts", label: "Awaiting accounts"   },
+    { id: "new_application",   label: "New application"     },
+];
+
+const DecisionTab = ({
+    lead,
+    onDecision,
+    existingDecision,
+    onRevert,
+}: {
+    lead: Lead;
+    onDecision: (d: "approved" | "declined") => void;
+    existingDecision?: "approved" | "declined";
+    onRevert?: (stage: LeadStage) => void;
+}) => {
     const [open, setOpen] = useState<"approve" | "decline" | null>(existingDecision === "approved" ? "approve" : existingDecision === "declined" ? "decline" : null);
     const toggle = (item: "approve" | "decline") =>
         setOpen((prev) => (prev === item ? null : item));
 
     const [loanAmount, setLoanAmount]   = useState(String(lead.loanAmount));
     const [termMonths, setTermMonths]   = useState(String(lead.termMonths));
-    const [rate, setRate]               = useState("6");
-    const [conditions, setConditions]   = useState("");
-    const [securities, setSecurities]   = useState("");
+    const [rate, setRate]               = useState("8.2");
+    const [conditions, setConditions]   = useState(existingDecision === "approved" ? "Personal guarantee from the director" : "");
+    const [securities, setSecurities]   = useState(existingDecision === "approved" ? "Debenture over company assets" : "");
     const [checked, setChecked]         = useState<Record<string, boolean>>({});
+
+    const [revertTarget, setRevertTarget] = useState<LeadStage>("awaiting_customer");
+    const [revertDropdownOpen, setRevertDropdownOpen] = useState(false);
+    const revertRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (revertRef.current && !revertRef.current.contains(e.target as Node)) setRevertDropdownOpen(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
 
     const monthly = calcMonthlyPayment(
         parseFloat(loanAmount) || 0,
@@ -2175,13 +2219,139 @@ const DecisionTab = ({ lead, onDecision, existingDecision }: { lead: Lead; onDec
     );
 
     const inputClass = "w-full rounded-lg border border-primary bg-primary px-3 py-2 text-sm text-secondary shadow-xs placeholder:text-quaternary focus:ring-2 focus:ring-inset focus:ring-brand focus:outline-none";
-    const disabledInputClass = "w-full rounded-lg border border-primary bg-secondary_subtle px-3 py-2 text-sm text-quaternary shadow-xs";
+    const disabledInputClass = "w-full rounded-lg border border-primary bg-secondary_subtle px-3 py-2 text-sm text-quaternary shadow-xs cursor-not-allowed";
     const labelClass = "mb-1.5 block text-sm font-medium text-secondary";
 
+    const revertTargetLabel = REVERT_STAGES.find(s => s.id === revertTarget)?.label ?? "Waiting for customer";
+
+    // ── Post-decision read-only view ──────────────────────────────────────────
+    if (existingDecision) {
+        return (
+            <div className="flex w-full flex-col gap-4">
+                {/* Decided card */}
+                <div className="flex w-full flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
+                    {/* Header */}
+                    <div className={cx(
+                        "flex items-center justify-between px-3 py-3 opacity-80",
+                    )}>
+                        <div className="flex items-center gap-2">
+                            {existingDecision === "approved"
+                                ? <CheckCircle className="size-5 shrink-0 text-[#079455]" />
+                                : <XCircle className="size-5 shrink-0 text-[#d92d20]" />}
+                            <span className={cx("text-sm font-semibold", existingDecision === "approved" ? "text-[#079455]" : "text-[#d92d20]")}>
+                                {existingDecision === "approved" ? "Approved" : "Declined"}
+                            </span>
+                        </div>
+                        <ChevronUp className="size-5 text-fg-quaternary" />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex flex-wrap gap-3 rounded-xl border border-secondary bg-primary px-5 py-5">
+                        {existingDecision === "approved" ? (
+                            <>
+                                <div className="flex min-w-[200px] flex-1 flex-col">
+                                    <label className={labelClass}>Loan amount</label>
+                                    <div className="relative">
+                                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-secondary">£</span>
+                                        <input type="text" readOnly value={Number(loanAmount).toLocaleString("en-GB")} className={cx(inputClass, "pl-7 cursor-not-allowed")} />
+                                    </div>
+                                </div>
+                                <div className="flex min-w-[200px] flex-1 flex-col">
+                                    <label className={labelClass}>Term in months</label>
+                                    <input type="text" readOnly value={termMonths} className={cx(inputClass, "cursor-not-allowed")} />
+                                </div>
+                                <div className="flex min-w-[200px] flex-1 flex-col">
+                                    <label className={labelClass}>Rate in %</label>
+                                    <input type="text" readOnly value={rate} className={cx(inputClass, "cursor-not-allowed")} />
+                                </div>
+                                <div className="flex min-w-[200px] flex-1 flex-col">
+                                    <label className={labelClass}>Monthly payments</label>
+                                    <div className="relative">
+                                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-quaternary">£</span>
+                                        <input type="text" readOnly value={monthly.toLocaleString("en-GB", { maximumFractionDigits: 0 })} className={cx(disabledInputClass, "pl-7")} />
+                                    </div>
+                                </div>
+                                <div className="w-full flex-col">
+                                    <label className={labelClass}>Conditions Precedent</label>
+                                    <textarea readOnly value={conditions} rows={5} className={cx(inputClass, "resize-y cursor-not-allowed")} />
+                                </div>
+                                <div className="w-full flex-col">
+                                    <label className={labelClass}>Securities</label>
+                                    <textarea readOnly value={securities} rows={5} className={cx(inputClass, "resize-y cursor-not-allowed")} />
+                                </div>
+                                <div className="flex w-full justify-end pt-1">
+                                    <div className="flex items-center gap-2 rounded-lg border border-secondary bg-secondary_subtle px-4 py-2.5 text-sm font-semibold text-[#079455] shadow-xs">
+                                        <CheckCircle className="size-4" />
+                                        Loan Approved
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {DECLINE_REASONS.map((reason) => (
+                                    <label key={reason} className="flex w-[calc(50%-6px)] cursor-not-allowed items-center gap-2.5 opacity-60">
+                                        <input type="checkbox" disabled className="size-4 shrink-0 rounded border border-primary" />
+                                        <span className="text-sm font-medium text-secondary">{reason}</span>
+                                    </label>
+                                ))}
+                                <div className="flex w-full justify-end pt-1">
+                                    <div className="flex items-center gap-2 rounded-lg border border-secondary bg-secondary_subtle px-4 py-2.5 text-sm font-semibold text-[#d92d20] shadow-xs">
+                                        <XCircle className="size-4" />
+                                        Loan Declined
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* Revert split button */}
+                <div className="flex justify-center">
+                    <div ref={revertRef} className="relative flex">
+                        <button
+                            type="button"
+                            onClick={() => onRevert?.(revertTarget)}
+                            className="flex items-center gap-1 rounded-l-lg border-b border-l border-t border-primary bg-primary px-3.5 py-2 text-sm font-semibold text-tertiary shadow-xs transition hover:bg-primary_hover"
+                        >
+                            Revert decision and move to&nbsp;<span className="text-primary">{revertTargetLabel}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setRevertDropdownOpen(o => !o)}
+                            className="flex items-center justify-center rounded-r-lg border border-primary bg-primary px-2 py-2 shadow-xs transition hover:bg-primary_hover"
+                        >
+                            <ChevronSelectorVertical className="size-5 text-fg-secondary" />
+                        </button>
+                        {revertDropdownOpen && (
+                            <div className="absolute bottom-full left-0 mb-1.5 min-w-full rounded-lg border border-secondary bg-primary py-1 shadow-lg animate-in fade-in slide-in-from-bottom-1 duration-150">
+                                {REVERT_STAGES.map(s => (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => { setRevertTarget(s.id); setRevertDropdownOpen(false); }}
+                                        className={cx(
+                                            "flex w-full items-center gap-2 px-3.5 py-2 text-left text-sm transition hover:bg-secondary_subtle",
+                                            s.id === revertTarget ? "font-semibold text-primary" : "text-secondary",
+                                        )}
+                                    >
+                                        {s.id === revertTarget && <Check className="size-4 shrink-0 text-fg-brand-primary" />}
+                                        {s.id !== revertTarget && <span className="size-4 shrink-0" />}
+                                        {s.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ── Pre-decision form ─────────────────────────────────────────────────────
     return (
         <div className="flex w-full flex-col gap-3">
             {/* Approve */}
-            <DecisionAccordionItem kind="approve" open={open === "approve"} decided={existingDecision === "approved"} onToggle={() => toggle("approve")}>
+            <DecisionAccordionItem kind="approve" open={open === "approve"} decided={false} onToggle={() => toggle("approve")}>
                 <div className="flex w-full flex-wrap gap-3">
                     <div className="flex min-w-[200px] flex-1 flex-col">
                         <label className={labelClass}>Loan amount</label>
@@ -2246,27 +2416,19 @@ const DecisionTab = ({ lead, onDecision, existingDecision }: { lead: Lead; onDec
                         />
                     </div>
                     <div className="flex w-full justify-end pt-1">
-                        {existingDecision === "approved" ? (
-                            <div className="flex items-center gap-2 rounded-lg border border-secondary bg-secondary_subtle px-4 py-2.5 text-sm font-semibold text-[#079455] shadow-xs">
-                                <CheckCircle className="size-4" />
-                                Loan Approved
-                            </div>
-                        ) : (
-                            <button
-                                type="button"
-                                disabled={!!existingDecision}
-                                onClick={() => onDecision("approved")}
-                                className="rounded-lg bg-[#079455] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#067a48] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Approve this loan
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => onDecision("approved")}
+                            className="rounded-lg bg-[#079455] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#067a48]"
+                        >
+                            Approve this loan
+                        </button>
                     </div>
                 </div>
             </DecisionAccordionItem>
 
             {/* Decline */}
-            <DecisionAccordionItem kind="decline" open={open === "decline"} decided={existingDecision === "declined"} onToggle={() => toggle("decline")}>
+            <DecisionAccordionItem kind="decline" open={open === "decline"} decided={false} onToggle={() => toggle("decline")}>
                 <div className="flex w-full flex-wrap gap-x-6 gap-y-3">
                     {DECLINE_REASONS.map((reason) => (
                         <label key={reason} className="flex w-[calc(50%-12px)] cursor-pointer items-center gap-2.5">
@@ -2280,31 +2442,522 @@ const DecisionTab = ({ lead, onDecision, existingDecision }: { lead: Lead; onDec
                         </label>
                     ))}
                     <div className="flex w-full justify-end pt-1">
-                        {existingDecision === "declined" ? (
-                            <div className="flex items-center gap-2 rounded-lg border border-secondary bg-secondary_subtle px-4 py-2.5 text-sm font-semibold text-[#d92d20] shadow-xs">
-                                <XCircle className="size-4" />
-                                Loan Declined
-                            </div>
-                        ) : (
-                            <button
-                                type="button"
-                                disabled={!!existingDecision}
-                                onClick={() => onDecision("declined")}
-                                className="rounded-lg bg-[#d92d20] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#b42318] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Decline this loan
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => onDecision("declined")}
+                            className="rounded-lg bg-[#d92d20] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#b42318]"
+                        >
+                            Decline this loan
+                        </button>
                     </div>
                 </div>
             </DecisionAccordionItem>
-
         </div>
     );
 };
 
-type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision";
+type DetailTab = "overview" | "documents" | "analysis" | "export" | "decision" | "loan_document";
 
+// ─── AddressSearchInput ───────────────────────────────────────────────────────
+
+const AddressSearchInput = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
+    const [searchText, setSearchText] = useState(value);
+    const [searching, setSearching] = useState(false);
+    const [open, setOpen] = useState(false);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    const handleChange = (text: string) => {
+        setSearchText(text);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (text.length > 0) {
+            setSearching(true);
+            setOpen(true);
+            timeoutRef.current = setTimeout(() => setSearching(false), 1000);
+        } else {
+            setSearching(false);
+            setOpen(false);
+        }
+    };
+
+    const handleSelect = (addr: typeof STATIC_ADDRESSES[number]) => {
+        setSearchText(addr.address);
+        onChange(addr.address);
+        setOpen(false);
+        setSearching(false);
+    };
+
+    return (
+        <div ref={wrapperRef} className="relative">
+            <div className="flex items-center gap-2 rounded-lg border border-secondary bg-primary px-3.5 py-2.5 shadow-xs focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand">
+                <SearchLg className="size-4 shrink-0 text-fg-quaternary" />
+                <input
+                    type="text"
+                    placeholder="Start typing to search"
+                    value={searchText}
+                    onChange={e => handleChange(e.target.value)}
+                    className="flex-1 bg-transparent text-sm text-primary placeholder:text-placeholder outline-none"
+                />
+            </div>
+            {open && (
+                <div className="absolute top-full left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-secondary bg-primary py-1 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+                    {searching ? (
+                        <div className="px-3.5 py-2 text-sm text-quaternary">Searching for addresses…</div>
+                    ) : (
+                        STATIC_ADDRESSES.map(addr => (
+                            <div key={addr.id} className="px-1.5 py-px">
+                                <button
+                                    type="button"
+                                    onClick={() => handleSelect(addr)}
+                                    className={cx(
+                                        "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors hover:bg-secondary_subtle",
+                                        value === addr.address && "bg-secondary_subtle",
+                                    )}
+                                >
+                                    <span className="flex-1 text-primary">{addr.address}</span>
+                                    {value === addr.address && <Check className="size-4 shrink-0 text-fg-brand-primary" />}
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── HomePscCard (Hometrack) ──────────────────────────────────────────────────
+
+interface PscAddressEntry {
+    id: string;
+    address: string;
+    isOwner: boolean;
+    estimatedValue: number;
+}
+
+interface PscAddressState {
+    entries: PscAddressEntry[];
+    isAdding: boolean;
+}
+
+const PSC_INITIAL_HOMES = [
+    { name: "Mr. Alex Buck",   isApplicant: true,  address: "63, Ambleside Walk, Canvey Island, CV359EE" },
+    { name: "Ms. Jamie Lee",   isApplicant: false,  address: "14 Oakfield Road, Bristol, BS8 2AJ" },
+    { name: "Dr. Samira Khan", isApplicant: false, address: "27 Elm Grove, Edinburgh, EH6 8AB" },
+];
+
+// Deterministic owner + value from address string
+const addrHash = (s: string) => s.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+const isOwnerAddress = (addr: string) => addrHash(addr) % 2 === 1;
+const ownerValueForAddress = (addr: string) => Math.round(((addrHash(addr) % 400) + 150) * 1000);
+
+const HomePscCard = () => {
+    const [pscStates, setPscStates] = useState<PscAddressState[]>(() =>
+        PSC_INITIAL_HOMES.map((p) => ({
+            entries: [{
+                id: `${p.name}-0`,
+                address: p.address,
+                isOwner: isOwnerAddress(p.address),
+                estimatedValue: ownerValueForAddress(p.address),
+            }],
+            isAdding: false,
+        }))
+    );
+
+    const handleAddressSelected = (pscIdx: number, address: string) => {
+        if (!address) return;
+        setPscStates(prev => prev.map((s, i) => {
+            if (i !== pscIdx) return s;
+            return {
+                entries: [...s.entries, {
+                    id: `${pscIdx}-${s.entries.length}`,
+                    address,
+                    isOwner: isOwnerAddress(address),
+                    estimatedValue: ownerValueForAddress(address),
+                }],
+                isAdding: false,
+            };
+        }));
+    };
+
+    const handleRemove = (pscIdx: number, entryId: string) => {
+        setPscStates(prev => prev.map((s, i) =>
+            i !== pscIdx ? s : { ...s, entries: s.entries.filter(e => e.id !== entryId) }
+        ));
+    };
+
+    const setAdding = (pscIdx: number, val: boolean) => {
+        setPscStates(prev => prev.map((s, i) => i !== pscIdx ? s : { ...s, isAdding: val }));
+    };
+
+    return (
+        <InfoCard title="Hometrack" raw>
+            <div className="rounded-xl border border-secondary bg-primary">
+                {PSC_INITIAL_HOMES.map((psc, pscIdx) => {
+                    const state = pscStates[pscIdx];
+                    const ownerEntries = state.entries.filter(e => e.isOwner);
+                    const totalOwnerValue = ownerEntries.reduce((sum, e) => sum + e.estimatedValue, 0);
+                    return (
+                        <div key={psc.name} className={cx("px-6 py-5", pscIdx > 0 && "border-t border-secondary")}>
+                            {/* PSC name */}
+                            <div className="mb-3">
+                                <p className="mb-0.5 text-xs text-tertiary">PSC Name</p>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-primary">{psc.name}</span>
+                                    {psc.isApplicant && (
+                                        <span className="rounded-full border border-[#b692f6] bg-[#f9f5ff] px-2 py-0.5 text-xs font-medium text-[#6941c6]">Applicant</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Address rows */}
+                            {state.entries.map((entry, entryIdx) => {
+                                const isFirst = entryIdx === 0;
+                                const isLast = entryIdx === state.entries.length - 1;
+                                return (
+                                    <div key={entry.id} className="mb-2">
+                                        <p className="mb-0.5 text-xs text-tertiary">{isFirst ? "Home Address" : "Additional home"}</p>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex flex-1 min-w-0 flex-wrap items-center gap-2">
+                                                <span className="text-sm font-semibold text-primary">{entry.address}</span>
+                                                {entry.isOwner ? (
+                                                    <span className="shrink-0 rounded-full border border-[#abefc6] bg-[#ecfdf3] px-2 py-0.5 text-xs font-medium text-[#067647]">Owner</span>
+                                                ) : (
+                                                    <span className="shrink-0 rounded-full border border-[#fecdca] bg-[#fff1f0] px-2 py-0.5 text-xs font-medium text-[#b42318]">Not Owner</span>
+                                                )}
+                                            </div>
+                                            {!isFirst && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemove(pscIdx, entry.id)}
+                                                    className="flex shrink-0 items-center justify-center rounded-lg border border-secondary bg-primary p-1.5 shadow-xs transition hover:bg-primary_hover text-fg-quaternary hover:text-fg-error-primary"
+                                                >
+                                                    <Trash01 className="size-4" />
+                                                </button>
+                                            )}
+                                            {isLast && !state.isAdding && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAdding(pscIdx, true)}
+                                                    className="flex shrink-0 items-center justify-center rounded-lg border border-secondary bg-primary p-1.5 shadow-xs transition hover:bg-primary_hover text-fg-quaternary"
+                                                >
+                                                    <Plus className="size-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Add address input */}
+                            {state.isAdding && (
+                                <div className="mt-1 mb-2">
+                                    <p className="mb-1 text-xs text-tertiary">Add an address</p>
+                                    <AddressSearchInput
+                                        value=""
+                                        onChange={(addr) => handleAddressSelected(pscIdx, addr)}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Estimated value of owned homes */}
+                            <div className="mt-3">
+                                <p className="mb-0.5 text-xs text-tertiary">Estimated value of owned homes</p>
+                                <span className="text-sm font-semibold text-primary">
+                                    {ownerEntries.length > 0 ? `£${totalOwnerValue.toLocaleString("en-GB")}` : "–"}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </InfoCard>
+    );
+};
+
+// ─── LoanDocumentTab ─────────────────────────────────────────────────────────
+
+const LOAN_INPUT_CLS = "w-full rounded-lg border border-secondary bg-primary px-3.5 py-2.5 text-sm text-primary placeholder:text-placeholder shadow-xs outline-none focus:ring-2 focus:ring-brand-solid/30 focus:border-brand-solid transition";
+const LOAN_SELECT_CLS = "w-full rounded-lg border border-secondary bg-primary px-3.5 py-2.5 text-sm text-primary shadow-xs outline-none focus:ring-2 focus:ring-brand-solid/30 focus:border-brand-solid transition appearance-none cursor-pointer";
+const LOAN_LABEL_CLS = "text-sm font-medium text-secondary";
+
+type GuarantorData = { person: string; address: string; tel?: string; mobile?: string; email: string };
+
+const EMPTY_GUARANTOR: GuarantorData = { person: "", address: "", tel: "", mobile: "", email: "" };
+
+const GuarantorSection = ({
+    index,
+    g,
+    setField,
+    onRemove,
+}: {
+    index: number;
+    g: GuarantorData;
+    setField: (i: number, field: string, val: string) => void;
+    onRemove?: () => void;
+}) => {
+    const isFirst = index === 0;
+    return (
+        <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-primary">Guarantor {index + 1}</span>
+                {onRemove && (
+                    <button
+                        type="button"
+                        onClick={onRemove}
+                        className="flex items-center justify-center rounded-md p-1 text-fg-quaternary transition hover:bg-secondary_subtle hover:text-secondary"
+                    >
+                        <XClose className="size-4" />
+                    </button>
+                )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <label className={LOAN_LABEL_CLS}>Guarantor</label>
+                <div className="relative">
+                    <select className={LOAN_SELECT_CLS} value={g.person} onChange={e => setField(index, "person", e.target.value)}>
+                        {index > 0 && <option value="">Select guarantor…</option>}
+                        {GUARANTOR_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-fg-quaternary" />
+                </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <label className={LOAN_LABEL_CLS}>Home Address</label>
+                <AddressSearchInput value={g.address} onChange={v => setField(index, "address", v)} />
+            </div>
+            {isFirst && (
+                <div className="flex gap-3">
+                    <div className="flex flex-1 flex-col gap-1.5">
+                        <label className={LOAN_LABEL_CLS}>Telephone</label>
+                        <input type="tel" className={LOAN_INPUT_CLS} value={g.tel ?? ""} onChange={e => setField(index, "tel", e.target.value)} placeholder="+44 000 000 0000" />
+                    </div>
+                    <div className="flex flex-1 flex-col gap-1.5">
+                        <label className={LOAN_LABEL_CLS}>Mobile Phone</label>
+                        <input type="tel" className={LOAN_INPUT_CLS} value={g.mobile ?? ""} onChange={e => setField(index, "mobile", e.target.value)} placeholder="+44 000 000 0000" />
+                    </div>
+                </div>
+            )}
+            <div className="flex flex-col gap-1.5">
+                <label className={LOAN_LABEL_CLS}>Email address</label>
+                <input type="email" className={LOAN_INPUT_CLS} value={g.email} onChange={e => setField(index, "email", e.target.value)} placeholder="name@example.com" />
+            </div>
+        </div>
+    );
+};
+
+const APPROVED_LOAN_FIELDS = [
+    { label: "Amount",             value: "£33,223"  },
+    { label: "Term",               value: "12 months" },
+    { label: "Loan Tier",          value: "Tier 1"    },
+    { label: "First Payment",      value: "£4,341"    },
+    { label: "Total Repayable",    value: "£44,607"   },
+    { label: "Administration fee", value: "£499"      },
+    { label: "Interest",           value: "£12,855"   },
+    { label: "Flat Rate",          value: "38.7848%"  },
+] as const;
+
+const GUARANTOR_OPTIONS = [
+    { value: "mr-jack-james-smith", label: "Mr. Jack James Smith" },
+    { value: "mr-james-jack-smith", label: "Mr. James Jack Smith" },
+    { value: "ms-sarah-johnson",    label: "Ms. Sarah Johnson"    },
+] as const;
+
+const LoanDocumentTab = () => {
+    const hubspotDeal = "123456";
+    const [guarantorCount, setGuarantorCount] = useState(1);
+    const [gData, setGData] = useState([
+        { person: "mr-jack-james-smith", address: "", tel: "", mobile: "", email: "" },
+        { person: "",                    address: "",                               email: "" },
+        { person: "",                    address: "",                               email: "" },
+        { person: "",                    address: "",                               email: "" },
+    ] as { person: string; address: string; tel?: string; mobile?: string; email: string }[]);
+    const [generated, setGenerated] = useState(false);
+
+    const setField = (i: number, field: string, val: string) =>
+        setGData(prev => prev.map((g, idx) => idx === i ? { ...g, [field]: val } : g));
+
+    const removeGuarantor = (i: number) => {
+        setGData(prev => {
+            const next = [...prev];
+            next.splice(i, 1);
+            next.push({ ...EMPTY_GUARANTOR });
+            return next;
+        });
+        setGuarantorCount(c => Math.max(1, c - 1));
+    };
+
+    const canGenerate = gData.slice(0, guarantorCount).every((g, i) => {
+        const base = g.person && g.address && g.email;
+        if (i === 0) return base && g.tel && g.mobile;
+        return base;
+    });
+
+    const activeGuarantors = gData.slice(0, guarantorCount);
+    const signedCount = 1; // static for prototype — first guarantor signed
+
+    return (
+        <div className="flex flex-col gap-4">
+            {/* Approved loan details */}
+            <InfoCard title="Approved loan details">
+                {APPROVED_LOAN_FIELDS.map(({ label, value }) => (
+                    <SummaryField key={label} label={label} value={value} className="w-[calc(50%-6px)]" />
+                ))}
+            </InfoCard>
+
+            {generated ? (
+                /* ── Document Generated card ── */
+                <InfoCard title="Document Generated" raw>
+                    <div className="flex flex-col overflow-hidden rounded-xl border border-secondary bg-primary">
+                        {/* Signed status banner */}
+                        <div className={cx("px-5 py-2", signedCount === guarantorCount ? "bg-utility-success-50" : "bg-[#fffaeb]")}>
+                            <span className={cx("text-lg font-semibold", signedCount === guarantorCount ? "text-success-primary" : "text-[#dc6803]")}>
+                                {signedCount} of {guarantorCount} signed
+                            </span>
+                        </div>
+
+                        {/* Table */}
+                        <div className="flex border-t border-secondary">
+                            {/* Guarantor column */}
+                            <div className="flex min-w-0 flex-1 flex-col">
+                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-5">
+                                    <span className="text-xs font-semibold text-quaternary">Guarantor</span>
+                                </div>
+                                {activeGuarantors.map((g, i) => {
+                                    const name = GUARANTOR_OPTIONS.find(o => o.value === g.person)?.label ?? g.person;
+                                    return (
+                                        <div key={i} className="flex h-12 items-center border-b border-secondary px-5 last:border-b-0">
+                                            <span className="text-sm font-semibold text-tertiary">{name}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {/* Email column */}
+                            <div className="flex min-w-0 flex-1 flex-col">
+                                <div className="flex h-11 items-center border-b border-secondary bg-primary px-6">
+                                    <span className="text-xs font-semibold text-quaternary">Email</span>
+                                </div>
+                                {activeGuarantors.map((g, i) => (
+                                    <div key={i} className="flex h-12 items-center border-b border-secondary px-6 last:border-b-0">
+                                        <span className="text-sm text-tertiary">{g.email || "—"}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            {/* Signed column */}
+                            <div className="flex flex-col">
+                                <div className="flex h-11 items-center justify-end border-b border-secondary bg-primary px-6">
+                                    <span className="text-xs font-semibold text-quaternary">Signed</span>
+                                </div>
+                                {activeGuarantors.map((_, i) => (
+                                    <div key={i} className="flex h-12 items-center justify-end border-b border-secondary px-6 last:border-b-0">
+                                        {i < signedCount
+                                            ? <Check className="size-5 text-[#079455]" />
+                                            : <XClose className="size-5 text-[#d92d20]" />}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-col items-center gap-4 px-5 py-5">
+                            <div className="flex w-full gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setGenerated(false)}
+                                    className="flex flex-1 items-center justify-center rounded-lg bg-[#b42318] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#912018]"
+                                >
+                                    Void and Regenerate
+                                </button>
+                                <button
+                                    type="button"
+                                    className="flex flex-1 items-center justify-center rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-secondary shadow-xs transition hover:bg-primary_hover"
+                                >
+                                    Resend reminder
+                                </button>
+                                <a
+                                    href="https://www.docusign.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex flex-1 items-center justify-center rounded-lg bg-[#594483] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#4a3870]"
+                                >
+                                    View on Docusign
+                                </a>
+                            </div>
+                            <span className="text-xs text-quaternary">Envelope ID: 1254-adg454-fas447af-5afefgh5</span>
+                        </div>
+                    </div>
+                </InfoCard>
+            ) : (
+                /* ── Generate Document form ── */
+                <InfoCard title="Generate Document" raw>
+                    <div className="flex flex-col gap-5 rounded-xl border border-secondary bg-primary px-5 py-4">
+                        {/* Hubspot deal number */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className={LOAN_LABEL_CLS}>Hubspot deal number</label>
+                            <input
+                                type="text"
+                                className={cx(LOAN_INPUT_CLS, "cursor-not-allowed opacity-60")}
+                                value={hubspotDeal}
+                                disabled
+                                readOnly
+                            />
+                        </div>
+
+                        <div className="h-px bg-[var(--color-border-secondary)]" />
+
+                        {Array.from({ length: guarantorCount }).map((_, i) => (
+                            <div key={i} className="flex flex-col gap-5">
+                                <GuarantorSection
+                                    index={i}
+                                    g={gData[i]}
+                                    setField={setField}
+                                    onRemove={guarantorCount > 1 ? () => removeGuarantor(i) : undefined}
+                                />
+                                {i < guarantorCount - 1 && <div className="h-px bg-[var(--color-border-secondary)]" />}
+                            </div>
+                        ))}
+
+                        {/* Add Guarantor button */}
+                        <button
+                            type="button"
+                            disabled={guarantorCount >= 4}
+                            onClick={() => setGuarantorCount(c => Math.min(c + 1, 4))}
+                            className="flex items-center justify-center gap-1.5 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-secondary shadow-xs transition hover:bg-primary_hover disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            {guarantorCount < 4 && <span className="text-lg leading-none">+</span>}
+                            {guarantorCount >= 4 ? "Max 4 guarantors" : `Add Guarantor ${guarantorCount + 1}`}
+                        </button>
+
+                        <div className="h-px bg-[var(--color-border-secondary)]" />
+
+                        {/* Generate Document CTA */}
+                        <button
+                            type="button"
+                            disabled={!canGenerate}
+                            onClick={() => {
+                                window.open("https://www.docusign.com", "_blank", "noopener,noreferrer");
+                                setGenerated(true);
+                            }}
+                            className={cx(
+                                "flex w-full items-center justify-center gap-2 rounded-lg bg-[#594483] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#4a3870] disabled:cursor-not-allowed disabled:opacity-40",
+                            )}
+                        >
+                            <Download01 className="size-4" />
+                            Generate Document
+                        </button>
+                    </div>
+                </InfoCard>
+            )}
+        </div>
+    );
+};
 
 // ─── WiserFundingChart ────────────────────────────────────────────────────────
 
@@ -2691,7 +3344,7 @@ const PSC_CONTACTS = [
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage }; onDecision: (d: "approved" | "declined") => void }) => {
+const LeadDetailView = ({ lead, onDecision, onRevert }: { lead: Lead & { stage: LeadStage }; onDecision: (d: "approved" | "declined") => void; onRevert?: (stage: LeadStage) => void }) => {
     const navigate = useNavigate();
     const [tab, setTab] = useState<DetailTab>("overview");
     const [assignee, setAssignee] = useState(lead.assignee);
@@ -2751,7 +3404,16 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
         { id: "analysis",  label: "Data Analysis" },
         { id: "export",    label: "Credit Report" },
         { id: "decision",  label: "Decision" },
+        ...(lead.decision === "approved" ? [{ id: "loan_document" as DetailTab, label: "Loan Document" }] : []),
     ];
+
+    const detailTabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+    const [tabIndicator, setTabIndicator] = useState({ left: 0, width: 0 });
+    useLayoutEffect(() => {
+        const idx = tabs.findIndex(t => t.id === tab);
+        const el = detailTabRefs.current[idx];
+        if (el) setTabIndicator({ left: el.offsetLeft, width: el.offsetWidth });
+    }, [tab, tabs.length]);
 
     return (
         <CopyToastCtx.Provider value={showToast}>
@@ -2798,22 +3460,29 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                 {/* Center — Tabbed content */}
                 <div className="flex flex-[3] flex-col overflow-hidden">
                     {/* Tab bar */}
-                    <div className="flex h-11 shrink-0 items-end gap-3 border-b border-secondary">
-                        {tabs.map((t) => (
+                    <div className="relative flex h-11 shrink-0 items-end gap-3 border-b border-secondary">
+                        {tabs.map((t, i) => (
                             <button
                                 key={t.id}
+                                ref={el => { detailTabRefs.current[i] = el; }}
                                 type="button"
                                 onClick={() => setTab(t.id)}
                                 className={cx(
-                                    "flex h-8 shrink-0 items-center whitespace-nowrap px-1 text-sm font-semibold transition",
-                                    tab === t.id
-                                        ? "border-b-2 border-brand-solid text-brand-secondary"
-                                        : "text-quaternary hover:text-tertiary",
+                                    "flex h-8 shrink-0 items-center whitespace-nowrap px-1 text-sm font-semibold transition-colors duration-150",
+                                    tab === t.id ? "text-brand-secondary" : "text-quaternary hover:text-tertiary",
                                 )}
                             >
                                 {t.label}
                             </button>
                         ))}
+                        <div
+                            className="absolute bottom-0 h-0.5 bg-brand-700"
+                            style={{
+                                left: tabIndicator.left,
+                                width: tabIndicator.width,
+                                transition: "left 200ms ease-in-out, width 200ms ease-in-out",
+                            }}
+                        />
                     </div>
 
                     {/* Scrollable sections */}
@@ -3255,10 +3924,7 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                 </InfoCard>
 
                                 {/* ── Hometrack ── */}
-                                <InfoCard title="Hometrack">
-                                    <SummaryField label="Estimated value" value="£318,000"                                                              className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Address"         value="63, Ambleside Walk, Canvey Island, United Kingdom CV359EE"              className="w-[calc(50%-6px)]" />
-                                </InfoCard>
+                                <HomePscCard />
 
                                 {/* ── CCJs ── */}
                                 <InfoCard
@@ -3408,21 +4074,6 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                                     </div>
                                 </InfoCard>
 
-                                {/* ── Company details ── */}
-                                <InfoCard title="Company details">
-                                    <SummaryField label="Name"                     value={lead.company}        className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Companies House Number"   value={lead.companyNumber}  className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Registered Address"       value={lead.address}        className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Incorporated"             value={lead.incorporated}   className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Status"                   value="Active"              className="w-[calc(50%-6px)]" />
-                                </InfoCard>
-
-                                <InfoCard title="Financials">
-                                    <SummaryField label="Loan Amount"  value={formatAmount(lead.loanAmount)}   className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Loan Term"    value={`${lead.termMonths} months`}     className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Loan Purpose" value={lead.purpose}                    className="w-[calc(50%-6px)]" />
-                                    <SummaryField label="Submitted"    value={`${lead.timeAgo} ago`}           className="w-[calc(50%-6px)]" />
-                                </InfoCard>
                             </>
                         )}
                         {tab === "analysis" && (
@@ -3672,8 +4323,9 @@ const LeadDetailView = ({ lead, onDecision }: { lead: Lead & { stage: LeadStage 
                             );
                         })()}
                         {tab === "decision" && (
-                            <DecisionTab lead={lead} onDecision={handleDecision} existingDecision={lead.decision} />
+                            <DecisionTab lead={lead} onDecision={handleDecision} existingDecision={lead.decision} onRevert={onRevert} />
                         )}
+                        {tab === "loan_document" && <LoanDocumentTab />}
                     </div>
                 </div>
 
@@ -5010,7 +5662,7 @@ const LeadOverlay = ({
                             )}
 
                             {/* New task */}
-                            {(!hideNewTask || currentTaskCompleted) && <div className={cx("shrink-0 p-3", currentTaskCompleted && "animate-in fade-in slide-in-from-bottom-2 duration-300")} style={{ order: hideNewTask ? 2 : 1 }}>
+                            {(!hideNewTask || currentTaskCompleted) && <div className={cx("shrink-0 p-3", currentTaskCompleted && "animate-in fade-in slide-in-from-bottom-2 duration-300")} style={{ order: 1 }}>
                                 <div className="flex flex-col rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
                                     <div className="px-5 pt-3 pb-2">
                                         <p className="text-sm font-semibold text-primary">New task</p>
@@ -5216,7 +5868,7 @@ const LeadOverlay = ({
 
                             {/* Tasks view — task list */}
                             {hideNewTask && relatedTasks.length > 0 && (
-                                <div className="shrink-0 flex flex-col gap-2 p-3 pb-0" style={{ order: 1 }}>
+                                <div className="shrink-0 flex flex-col gap-2 p-3 pb-0" style={{ order: 0 }}>
                                     <p className="px-2 text-sm font-semibold text-primary">Tasks</p>
                                     <div className="flex flex-col gap-2">
                                         {relatedTasks.map(task => (
@@ -5232,9 +5884,9 @@ const LeadOverlay = ({
                                 </div>
                             )}
 
-                            {/* Tasks view — lead summary (rendered after new-task pane) */}
+                            {/* Tasks view — lead summary */}
                             {hideNewTask && (
-                                <div className="shrink-0 flex flex-col gap-3 p-3 pb-0" style={{ order: 3 }}>
+                                <div className="shrink-0 flex flex-col gap-3 p-3 pb-0" style={{ order: 2 }}>
                                     {/* Lead quick summary */}
                                     <div className="flex flex-col gap-0.5 rounded-xl bg-secondary_subtle shadow-xs">
                                         <div className="rounded-xl border border-secondary bg-primary px-5 pt-5 pb-6 shadow-xs">
@@ -5296,7 +5948,7 @@ const LeadOverlay = ({
                             )}
 
                             {/* Tabs */}
-                            <div className="relative shrink-0 flex border-b border-secondary px-5 pt-4">
+                            <div className="relative shrink-0 flex border-b border-secondary px-5 pt-4" style={{ order: 3 }}>
                                 {OVERLAY_TABS.map(({ key, label }, i) => (
                                     <button
                                         key={key}
@@ -5322,7 +5974,7 @@ const LeadOverlay = ({
                             </div>
 
                             {/* Tab content */}
-                            <div className="px-5 pt-4 pb-5">
+                            <div className="px-5 pt-4 pb-5" style={{ order: 4 }}>
                                 {activeTab === "contact" ? (
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                                         <OverlayField label="First name" value={LEAD_CONTACT_DETAILS[lead.id]?.firstName} placeholder="First name" animKey={contentAnimKey} exiting={contentExiting} />
@@ -6969,6 +7621,1776 @@ const PortalHomePage = ({ onRefresh, isRefreshing }: { onRefresh: () => void; is
     );
 };
 
+// ─── Shared team types ────────────────────────────────────────────────────────
+
+interface ArchivedUser {
+    id: string;
+    name: string;
+    initials: string;
+    avatar?: string;
+    role: "Account Manager" | "SDR" | "Underwriter";
+    tier?: BrokerTier;
+    assignment?: string;
+    _broker?: Broker;
+    _underwriter?: Underwriter;
+}
+
+interface ModalPerson {
+    id: string;
+    name: string;
+    initials: string;
+    avatar?: string;
+    role: "Account Manager" | "SDR" | "Underwriter";
+    tier?: BrokerTier;
+    managedSdrs?: Array<{ name: string; initials: string; avatar?: string }>;
+    managerName?: string;
+    isArchived?: boolean;
+}
+
+// ─── Person detail modal ──────────────────────────────────────────────────────
+
+const TIER_DROPDOWN_OPTIONS: { value: BrokerTier | "underwriter"; label: string }[] = [
+    { value: "priority",    label: "Priority"    },
+    { value: "tier-s",      label: "Tier S"      },
+    { value: "tier-1",      label: "Tier 1"      },
+    { value: "tier-2",      label: "Tier 2"      },
+    { value: "tier-3",      label: "Tier 3"      },
+    { value: "tier-4",      label: "Tier 4"      },
+    { value: "tier-5",      label: "Tier 5"      },
+    { value: "tier-6",      label: "Tier 6"      },
+    { value: "underwriter", label: "Underwriter" },
+];
+
+const HistoryStep = ({ label, date, hasConnector }: { label: string; date: string; hasConnector: boolean }) => (
+    <div className="flex gap-3 items-start">
+        <div className="flex shrink-0 flex-col items-center">
+            <div className="size-6 shrink-0 rounded-full border-[1.5px] border-secondary bg-disabled_subtle flex items-center justify-center">
+                <div className="size-2 rounded-full bg-border-secondary" />
+            </div>
+            {hasConnector && <div className="w-0.5 min-h-[28px] bg-secondary" />}
+        </div>
+        <div className="flex flex-col pb-6 min-w-0">
+            <span className="text-sm font-semibold text-secondary">{label}</span>
+            <span className="text-sm text-quaternary whitespace-nowrap">{date}</span>
+        </div>
+    </div>
+);
+
+const HistorySection = ({ label, entries }: { label: string; entries: { label: string; date: string }[] }) => (
+    <div className="flex flex-col">
+        <p className="px-2 pb-2 pt-0.5 text-xs font-medium uppercase tracking-wide text-quaternary">{label}</p>
+        {entries.map((e, i) => (
+            <HistoryStep key={i} label={e.label} date={e.date} hasConnector={i < entries.length - 1} />
+        ))}
+    </div>
+);
+
+const PersonDetailModal = ({
+    person,
+    personIndex,
+    totalPersons,
+    isClosing,
+    onClose,
+    onPrev,
+    onNext,
+    onArchive,
+    onRestore,
+    onTierChange,
+}: {
+    person: ModalPerson;
+    personIndex: number;
+    totalPersons: number;
+    isClosing?: boolean;
+    onClose: () => void;
+    onPrev: () => void;
+    onNext: () => void;
+    onArchive?: () => void;
+    onRestore?: () => void;
+    onTierChange?: (tier: BrokerTier | "underwriter") => void;
+}) => {
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = prev; };
+    }, []);
+
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "Escape") { onClose(); return; }
+            const tag = (e.target as HTMLElement).tagName;
+            const isEditing = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable;
+            if (!isEditing) {
+                if (e.key === "ArrowLeft" && personIndex > 0) navigatePerson("prev");
+                if (e.key === "ArrowRight" && personIndex < totalPersons - 1) navigatePerson("next");
+            }
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [onClose, personIndex, totalPersons]); // navigatePerson omitted — state setters inside are stable
+
+    const emailName = person.name.toLowerCase().replace(/\s+/g, ".");
+    const email = `${emailName}@business.com`;
+
+    // Deterministic seed from name so values are consistent per person
+    const seed = person.name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const rng = (min: number, max: number, offset = 0) => {
+        const x = Math.sin(seed + offset) * 10000;
+        return Math.floor((x - Math.floor(x)) * (max - min + 1)) + min;
+    };
+
+    const tenureYears  = rng(1, 6, 1);
+    const tenureMonths = rng(0, 11, 2);
+    const tenureDays   = rng(1, 28, 3);
+    const tenure = [
+        tenureYears > 0 ? `${tenureYears} year${tenureYears > 1 ? "s" : ""}` : "",
+        tenureMonths > 0 ? `${tenureMonths} month${tenureMonths > 1 ? "s" : ""}` : "",
+        `${tenureDays} day${tenureDays > 1 ? "s" : ""}`,
+    ].filter(Boolean).join(", ");
+
+    const MANAGERS = ["Alex O'Malley", "Sarah Jennings", "Tom Hargreaves", "Claire Moss", "Dan Whitfield"];
+    const HR_CONTACTS = ["Lucy Blewer", "James Patel", "Nina Okafor", "Ben Ashworth", "Fiona Draper"];
+    const reportsTo = MANAGERS[rng(0, MANAGERS.length - 1, 4)];
+    const hrContact = HR_CONTACTS[rng(0, HR_CONTACTS.length - 1, 5)];
+
+    const commission = (rng(800, 3200, 6) + rng(0, 99, 7) / 100).toFixed(2);
+    const commissionPct = rng(72, 115, 8);
+    const dealsCreated = rng(80, 240, 9);
+    const dealsPerDay = (rng(30, 120, 10) / 10).toFixed(1);
+    const dealsWon = rng(5, 28, 11);
+    const dealsWonPct = rng(-8, 25, 12);
+
+    const tierLabel = (t: string | undefined | null) => {
+        if (!t) return "Unassigned";
+        const map: Record<string, string> = {
+            "priority": "Priority", "tier-s": "Tier S", "tier-1": "Tier 1", "tier-2": "Tier 2",
+            "tier-3": "Tier 3", "tier-4": "Tier 4", "tier-5": "Tier 5", "tier-6": "Tier 6",
+        };
+        return map[t] ?? t;
+    };
+
+    const tierHistory = person.tier
+        ? [
+            { label: "Tier 6",                  date: "Oct 1, 2024 — Sep 30, 2025" },
+            { label: tierLabel(person.tier),     date: "Oct 1, 2025 — Now" },
+          ]
+        : [{ label: "Unassigned", date: "Jan 1, 2025 — Now" }];
+
+    const teamLabel = person.role === "Underwriter" ? "Underwriter" : "Broker";
+    const teamHistory = [
+        { label: "Underwriter", date: "Oct 1, 2024 — Apr 7, 2026" },
+        { label: teamLabel,     date: "Apr 7, 2026 — Now" },
+    ];
+
+    const sdrHistory = person.managedSdrs?.map((s, i) => ({
+        label: s.name,
+        date: i === 0 ? "Oct 1, 2025 — Apr 7, 2026" : "Apr 7, 2026 — Now",
+    })) ?? [];
+
+    const stats = [
+        { label: "Commission this month", value: `£${commission}`, tag: `${commissionPct}%` },
+        { label: "Deals created",         value: String(dealsCreated), tag: `${dealsPerDay} / day` },
+        { label: "Deals won",             value: String(dealsWon), tag: `${dealsWonPct >= 0 ? "+" : ""}${dealsWonPct}%` },
+    ];
+
+    const accounts = [
+        { label: "HiBob account",   logo: "/hibob.png",   href: "https://hibob.com"   },
+        { label: "Hubspot account", logo: "/hubspot.png", href: "https://hubspot.com" },
+        { label: "Aircall account", logo: "/aircall.png", href: "https://aircall.com" },
+    ];
+
+    const [selectedTier, setSelectedTier] = useState<BrokerTier | "underwriter">(
+        person.role === "Underwriter" ? "underwriter" : (person.tier ?? null)
+    );
+    const [tierDropdownOpen, setTierDropdownOpen] = useState(false);
+    const tierDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setSelectedTier(person.role === "Underwriter" ? "underwriter" : (person.tier ?? null));
+    }, [person.id]);
+
+    useEffect(() => {
+        if (!tierDropdownOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (tierDropdownRef.current && !tierDropdownRef.current.contains(e.target as Node))
+                setTierDropdownOpen(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [tierDropdownOpen]);
+
+    const selectedTierLabel = selectedTier === "underwriter"
+        ? "Underwriter"
+        : tierLabel(selectedTier as BrokerTier);
+
+    const [titleAnimKey, setTitleAnimKey] = useState(0);
+    const [titleDir, setTitleDir] = useState<"prev" | "next">("next");
+    const [titleExiting, setTitleExiting] = useState(false);
+    const [contentAnimKey, setContentAnimKey] = useState(0);
+    const [contentExiting, setContentExiting] = useState(false);
+
+    const navigatePerson = (dir: "prev" | "next") => {
+        setTitleDir(dir);
+        setTitleExiting(true);
+        setContentExiting(true);
+        setTimeout(() => {
+            dir === "next" ? onNext() : onPrev();
+            setTitleExiting(false);
+            setContentExiting(false);
+            setTitleAnimKey(k => k + 1);
+            setContentAnimKey(k => k + 1);
+        }, 120);
+    };
+
+    return (
+        <div className={cx("fixed inset-0 z-50", isClosing && "animate-out fade-out duration-150 fill-mode-forwards")}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] animate-in fade-in ease-out duration-300" onClick={onClose} />
+            <div className="absolute inset-0 flex justify-center pt-6 pointer-events-none">
+                <div
+                    className="relative flex w-3/4 min-w-[1200px] flex-col rounded-t-2xl bg-primary shadow-2xl overflow-hidden pointer-events-auto animate-in slide-in-from-bottom ease-out duration-300"
+                    style={{ height: "calc(100vh - 24px)" }}
+                    onClick={e => e.stopPropagation()}
+                >
+                    {/* Header */}
+                    <div className="shrink-0 p-3">
+                        <div className="flex items-center gap-4 rounded-xl border border-secondary bg-secondary_subtle px-4 py-3 shadow-xs">
+                            <Button color="secondary" size="md" iconLeading={ArrowLeft} onClick={() => navigatePerson("prev")} isDisabled={personIndex === 0} className="shrink-0" />
+                            <div
+                                key={titleAnimKey}
+                                className={cx(
+                                    "flex min-w-0 flex-1 items-center justify-between gap-2 transition-[opacity,transform] ease-in",
+                                    titleExiting
+                                        ? cx("duration-[120ms] opacity-0", titleDir === "next" ? "-translate-x-3" : "translate-x-3")
+                                        : cx("duration-200 ease-out animate-in fade-in", titleDir === "next" ? "slide-in-from-right-3" : "slide-in-from-left-3"),
+                                )}
+                            >
+                                <span className="truncate text-lg font-semibold text-primary">{person.name}</span>
+                                <span className="shrink-0 text-base text-tertiary">{personIndex + 1}/{totalPersons}</span>
+                            </div>
+                            <Button color="secondary" size="md" iconLeading={ArrowRight} onClick={() => navigatePerson("next")} isDisabled={personIndex === totalPersons - 1} className="shrink-0" />
+                        </div>
+                    </div>
+
+                    {/* Body */}
+                    <div
+                        key={contentAnimKey}
+                        className={cx(
+                            "flex flex-1 gap-3 overflow-hidden px-3 pb-3 transition-opacity ease-in",
+                            contentExiting ? "duration-[120ms] opacity-0" : "duration-200 ease-out animate-in fade-in",
+                        )}
+                    >
+                        {/* Left column */}
+                        <div className="flex flex-1 flex-col gap-3 min-w-0 overflow-y-auto pr-1">
+                            {/* Hero */}
+                            <div className="flex items-center gap-4 pb-2 pl-1">
+                                <div className="relative size-24 shrink-0 rounded-[12px]">
+                                    <div className="absolute inset-0 overflow-hidden rounded-[12px] border-4 border-white shadow-[0px_12px_16px_-4px_rgba(10,13,18,0.08),0px_4px_6px_-2px_rgba(10,13,18,0.03),0px_2px_2px_-1px_rgba(10,13,18,0.04)]">
+                                        {person.avatar ? (
+                                            <img src="/avatar_placeholder.png" alt={person.name} className="absolute inset-0 size-full object-cover" />
+                                        ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                                <span className="text-lg font-semibold text-secondary">{person.initials}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex flex-1 flex-col">
+                                    <span className="text-2xl font-semibold text-primary">{person.name}</span>
+                                    <span className="text-base text-tertiary">{person.role}</span>
+                                </div>
+                                {(person.role === "Account Manager" || person.role === "Underwriter") && (
+                                    <div ref={tierDropdownRef} className="relative shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setTierDropdownOpen(o => !o)}
+                                            className="flex items-center gap-1.5 rounded-lg border border-secondary bg-primary px-3.5 py-2.5 shadow-xs transition hover:bg-primary_hover"
+                                        >
+                                            <span className="text-sm font-semibold text-secondary">{selectedTierLabel}</span>
+                                            <ChevronDown className="size-5 text-fg-secondary" />
+                                        </button>
+                                        {tierDropdownOpen && (
+                                            <div className="absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-lg border border-secondary bg-primary py-1 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+                                                {TIER_DROPDOWN_OPTIONS.map(opt => (
+                                                    <div key={String(opt.value)} className="px-1.5 py-px">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setSelectedTier(opt.value); setTierDropdownOpen(false); onTierChange?.(opt.value); }}
+                                                            className={cx(
+                                                                "flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm font-semibold transition-colors hover:bg-secondary_subtle",
+                                                                selectedTier === opt.value ? "text-primary" : "text-secondary",
+                                                            )}
+                                                        >
+                                                            {opt.label}
+                                                            {selectedTier === opt.value && <Check className="size-4 shrink-0 text-fg-brand-primary" />}
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Overview */}
+                            <div className="rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
+                                <div className="px-5 py-3">
+                                    <span className="text-sm font-semibold text-primary">Overview</span>
+                                </div>
+                                <div className="rounded-xl border border-secondary bg-primary px-5 py-5 shadow-xs">
+                                    <div className="flex flex-wrap gap-4 px-1">
+                                        <div className="flex w-[calc(50%-8px)] flex-col">
+                                            <span className="text-sm text-tertiary">Tenure</span>
+                                            <span className="text-base font-semibold text-secondary">{tenure}</span>
+                                        </div>
+                                        <div className="flex w-[calc(50%-8px)] items-start justify-between">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm text-tertiary">Email</span>
+                                                <span className="text-base font-semibold text-secondary">{email}</span>
+                                            </div>
+                                            <button type="button" className="flex items-center justify-center rounded-md border border-secondary bg-primary p-2 shadow-xs hover:bg-primary_hover">
+                                                <Mail05 className="size-5 text-fg-secondary" />
+                                            </button>
+                                        </div>
+                                        <div className="flex w-[calc(50%-8px)] flex-col">
+                                            <span className="text-sm text-tertiary">Reports to</span>
+                                            <span className="text-base font-semibold text-secondary">{person.managerName ?? reportsTo}</span>
+                                        </div>
+                                        <div className="flex w-[calc(50%-8px)] flex-col">
+                                            <span className="text-sm text-tertiary">HR Check In</span>
+                                            <span className="text-base font-semibold text-secondary">{hrContact}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Recent Stats */}
+                            <div className="flex flex-col gap-2">
+                                <span className="text-sm font-semibold text-primary">Recent Stats</span>
+                                <div className="flex gap-3">
+                                    {stats.map(s => (
+                                        <div key={s.label} className="flex flex-1 flex-col gap-2 rounded-xl border border-secondary bg-primary p-5 shadow-xs">
+                                            <span className="text-sm font-semibold text-tertiary">{s.label}</span>
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <span className="text-3xl font-semibold text-primary leading-none">{s.value}</span>
+                                                <span className="rounded-md border border-secondary bg-primary px-2 py-0.5 text-sm font-medium text-secondary shadow-xs">{s.tag}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Connected Accounts */}
+                            <div className="flex flex-col gap-2">
+                                <span className="text-sm font-semibold text-primary">Connected Accounts</span>
+                                <div className="flex gap-3">
+                                    {accounts.map(({ label, logo, href }) => (
+                                        <div key={label} className="flex flex-1 items-center gap-3 rounded-xl border border-secondary bg-primary p-4 shadow-xs">
+                                            <img src={logo} alt={label} className="size-10 shrink-0 rounded-lg object-contain" />
+                                            <span className="flex-1 text-sm font-semibold text-primary">{label}</span>
+                                            <a href={href} target="_blank" rel="noreferrer" className="flex shrink-0 items-center justify-center rounded-md border border-secondary bg-primary p-2 shadow-xs hover:bg-primary_hover">
+                                                <Share05 className="size-5 text-fg-secondary" />
+                                            </a>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right sidebar */}
+                        <div className="flex w-[327px] shrink-0 flex-col gap-3">
+                            {/* History panel */}
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-secondary bg-secondary_subtle shadow-xs">
+                                <div className="shrink-0 px-5 py-3">
+                                    <span className="text-sm font-semibold text-primary">History</span>
+                                </div>
+                                <div className="flex-1 overflow-y-auto rounded-xl border border-secondary bg-primary p-2 shadow-xs">
+                                    <HistorySection label="TIER HISTORY" entries={tierHistory} />
+                                    <HistorySection label="TEAM HISTORY" entries={teamHistory} />
+                                    {sdrHistory.length > 0 && <HistorySection label="SDR HISTORY" entries={sdrHistory} />}
+                                </div>
+                            </div>
+
+                            {/* Action button */}
+                            {person.isArchived ? (
+                                <button
+                                    type="button"
+                                    onClick={onRestore}
+                                    className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:opacity-90"
+                                >
+                                    <RefreshCcw01 className="size-5" />
+                                    Restore User
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={onArchive}
+                                    className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#d92d20] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:opacity-90"
+                                >
+                                    <UsersX className="size-5" />
+                                    Archive User
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ─── Brokers page ─────────────────────────────────────────────────────────────
+
+type BrokerTier = "priority" | "tier-s" | "tier-1" | "tier-2" | "tier-3" | "tier-4" | "tier-5" | "tier-6" | null;
+type BrokerSortCol = "name" | "role" | "tier" | "assignment";
+
+interface Broker {
+    id: string;
+    name: string;
+    initials: string;
+    avatar?: string;
+    role: "Account Manager" | "SDR";
+    tier: BrokerTier;
+    managerId?: string;
+}
+
+const BROKERS_DATA: Broker[] = [
+    // Priority AMs — no SDRs
+    { id: "b1",  name: "Aaliyah Nolan",  initials: "AN", avatar: "/Avatar.jpg",   role: "Account Manager", tier: "priority" },
+    { id: "b2",  name: "Euan Reynolds",  initials: "ER", avatar: "/Avatar-1.jpg", role: "Account Manager", tier: "priority" },
+    { id: "b3",  name: "Amelia Gilbert", initials: "AG", avatar: "/Avatar-2.jpg", role: "Account Manager", tier: "priority" },
+    { id: "b4",  name: "Jade Mercer",    initials: "JM",                          role: "Account Manager", tier: "priority" },
+    { id: "b5",  name: "Marcus Reid",    initials: "MR",                          role: "Account Manager", tier: "priority" },
+    // Tier S AMs — get SDRs
+    { id: "b6",  name: "Katy Swanson",   initials: "KS", avatar: "/Avatar-3.jpg", role: "Account Manager", tier: "tier-s"   },
+    { id: "b7",  name: "Lucien Ford",    initials: "LF", avatar: "/Avatar-4.jpg", role: "Account Manager", tier: "tier-s"   },
+    { id: "b8",  name: "Levi Archer",    initials: "LA", avatar: "/Avatar-5.jpg", role: "Account Manager", tier: "tier-s"   },
+    { id: "b9",  name: "Zara Quinn",     initials: "ZQ",                          role: "Account Manager", tier: "tier-s"   },
+    // Tier 1 AMs — get SDRs
+    { id: "b10", name: "Beatriz Irwin",  initials: "BI", avatar: "/Avatar-6.jpg", role: "Account Manager", tier: "tier-1"   },
+    { id: "b11", name: "Owen Clarke",    initials: "OC",                          role: "Account Manager", tier: "tier-1"   },
+    // Tier 2 AMs — get SDRs
+    { id: "b12", name: "Anya Noble",     initials: "AN",                          role: "Account Manager", tier: "tier-2"   },
+    { id: "b13", name: "Stefan Voss",    initials: "SV",                          role: "Account Manager", tier: "tier-2"   },
+    // Tier 3 AMs — no SDRs
+    { id: "b14", name: "Rowan Chen",     initials: "RC",                          role: "Account Manager", tier: "tier-3"   },
+    { id: "b15", name: "Petra Blake",    initials: "PB",                          role: "Account Manager", tier: "tier-3"   },
+    // Tier 4 AMs — no SDRs
+    { id: "b16", name: "Felix Hammond",  initials: "FH",                          role: "Account Manager", tier: "tier-4"   },
+    { id: "b17", name: "Cleo Nash",      initials: "CN",                          role: "Account Manager", tier: "tier-4"   },
+    // Tier 5 AMs — no SDRs
+    { id: "b18", name: "Orion Walsh",    initials: "OW",                          role: "Account Manager", tier: "tier-5"   },
+    // Tier 6 AMs — no SDRs
+    { id: "b19", name: "Quinn Park",     initials: "QP",                          role: "Account Manager", tier: "tier-6"   },
+    // SDRs attached to Tier S AMs
+    { id: "s1",  name: "Knox Monroe",    initials: "KM",                          role: "SDR", tier: null, managerId: "b6"  },
+    { id: "s2",  name: "Mia Donovan",    initials: "MD",                          role: "SDR", tier: null, managerId: "b7"  },
+    { id: "s3",  name: "Theo Wells",     initials: "TW",                          role: "SDR", tier: null, managerId: "b8"  },
+    { id: "s4",  name: "Bea Hunt",       initials: "BH",                          role: "SDR", tier: null, managerId: "b8"  },
+    { id: "s5",  name: "Isla Garrett",   initials: "IG",                          role: "SDR", tier: null, managerId: "b9"  },
+    { id: "s6",  name: "Remy Stone",     initials: "RS",                          role: "SDR", tier: null, managerId: "b9"  },
+    { id: "s7",  name: "Remy Stone",     initials: "RS",                          role: "SDR", tier: null, managerId: "b9"  },
+    // SDRs attached to Tier 1 AMs
+    { id: "s8",  name: "Sam Fletcher",   initials: "SF",                          role: "SDR", tier: null, managerId: "b10" },
+    { id: "s9",  name: "Jordan Hayes",   initials: "JH",                          role: "SDR", tier: null, managerId: "b11" },
+    // SDRs attached to Tier 2 AMs
+    { id: "s10", name: "Daisy Park",     initials: "DP",                          role: "SDR", tier: null, managerId: "b12" },
+    { id: "s11", name: "Alex Wu",        initials: "AW",                          role: "SDR", tier: null, managerId: "b12" },
+    { id: "s12", name: "Nadia Osei",     initials: "NO",                          role: "SDR", tier: null, managerId: "b13" },
+    // Unassigned SDRs
+    { id: "s13", name: "Freya Booker",   initials: "FB",                          role: "SDR", tier: null },
+    { id: "s14", name: "Kobe Hayward",   initials: "KH",                          role: "SDR", tier: null },
+];
+
+const getBrokerAssignment = (broker: Broker, allBrokers: Broker[] = BROKERS_DATA): string => {
+    if (broker.role === "Account Manager") {
+        const sdrs = allBrokers.filter(b => b.managerId === broker.id);
+        if (sdrs.length === 0) return "";
+        return sdrs.length === 1 ? "1 SDR" : `${sdrs.length} SDRs`;
+    }
+    if (broker.managerId) {
+        return allBrokers.find(b => b.id === broker.managerId)?.name ?? "Unassigned";
+    }
+    return "Unassigned";
+};
+
+const BROKER_TIER_ORDER: Record<string, number> = { "priority": 0, "tier-s": 1, "tier-1": 2, "tier-2": 3, "tier-3": 4, "tier-4": 5, "tier-5": 6, "tier-6": 7 };
+
+const BrokerTierBadge = ({ tier }: { tier: BrokerTier }) => {
+    if (!tier) return null;
+    const config: Record<string, { label: string; bg: string; border: string; color: string }> = {
+        "priority": { label: "Priority", bg: "#363f72", border: "#363f72", color: "#ffffff"  },
+        "tier-s":   { label: "Tier S",   bg: "#5925dc", border: "#5925dc", color: "#ffffff"  },
+        "tier-1":   { label: "Tier 1",   bg: "#6938ef", border: "#5925dc", color: "#ffffff"  },
+        "tier-2":   { label: "Tier 2",   bg: "#7a5af8", border: "#6938ef", color: "#ffffff"  },
+        "tier-3":   { label: "Tier 3",   bg: "#bdb4fe", border: "#9b8afb", color: "#5925dc"  },
+        "tier-4":   { label: "Tier 4",   bg: "#d9d6fe", border: "#bdb4fe", color: "#5925dc"  },
+        "tier-5":   { label: "Tier 5",   bg: "#ebe9fe", border: "#d9d6fe", color: "#5925dc"  },
+        "tier-6":   { label: "Tier 6",   bg: "#f4f3ff", border: "#ebe9fe", color: "#5925dc"  },
+    };
+    const { label, bg, border, color } = config[tier];
+    return (
+        <span
+            className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium"
+            style={{ backgroundColor: bg, borderColor: border, color }}
+        >
+            {label}
+        </span>
+    );
+};
+
+// Static card used in DragOverlay (no drag hooks)
+const BrokerCardStatic = ({ am, sdrs }: { am: Broker; sdrs: Broker[] }) => (
+    <div className="flex flex-col gap-2 px-2">
+        <div className="flex h-[72px] items-center gap-3 rounded-xl pl-1 pr-2">
+            <Avatar size="md" src={am.avatar} initials={am.initials} />
+            <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-sm font-medium text-primary">{am.name}</span>
+                <span className="text-sm text-quaternary">Account Manager</span>
+            </div>
+        </div>
+        {sdrs.length > 0 && (
+            <div className="flex flex-col gap-2 pb-2 pl-1">
+                {sdrs.map(sdr => (
+                    <div key={sdr.id} className="flex items-center gap-2 pr-2">
+                        <div className="flex w-10 self-stretch items-center justify-center">
+                            <CornerDownRight className="size-4 text-fg-quaternary" />
+                        </div>
+                        <div className="flex flex-1 items-center gap-2">
+                            <Avatar size="xs" src={sdr.avatar} initials={sdr.initials} />
+                            <span className="flex-1 truncate text-sm font-medium text-primary">{sdr.name}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+    </div>
+);
+
+// Shared dropdown for board cards — rendered inside a `relative` wrapper
+const BoardCardMenu = ({ onClose, onArchive, onViewHistory }: { onClose: () => void; onArchive: () => void; onViewHistory: () => void }) => (
+    <>
+        <div className="fixed inset-0 z-10" onClick={onClose} />
+        <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-secondary bg-primary shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="py-1">
+                <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={onViewHistory}
+                    className="mx-1.5 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-secondary transition-colors hover:bg-secondary_subtle"
+                >
+                    <ClockRewind className="size-4 shrink-0" />
+                    Show history
+                </button>
+                <div className="my-1 border-t border-secondary" />
+                <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={onArchive}
+                    className="mx-1.5 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-[#d92d20] transition-colors hover:bg-[#fff1f0]"
+                >
+                    <UsersX className="size-4 shrink-0" />
+                    Archive user
+                </button>
+            </div>
+        </div>
+    </>
+);
+
+// Individual SDR row — draggable
+const DraggableSDRRow = ({ sdr, onArchive, onPersonClick }: { sdr: Broker; onArchive: (b: Broker) => void; onPersonClick: (b: Broker) => void }) => {
+    const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+        id: `sdr:${sdr.id}`,
+        data: { type: "sdr", sdrId: sdr.id },
+    });
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    return (
+        <div
+            ref={setNodeRef}
+            {...listeners}
+            {...attributes}
+            className={cx(
+                "group flex cursor-grab active:cursor-grabbing select-none items-center gap-2 rounded-xl pr-2 transition-colors hover:bg-secondary_subtle",
+                isDragging && "opacity-40",
+            )}
+        >
+            <div className="flex w-10 self-stretch items-center justify-center">
+                <CornerDownRight className="size-4 text-fg-quaternary" />
+            </div>
+            <div
+                className="flex flex-1 items-center gap-2"
+                onClick={(e) => { e.stopPropagation(); onPersonClick(sdr); }}
+            >
+                <Avatar size="xs" src={sdr.avatar} initials={sdr.initials} />
+                <span className="flex-1 truncate text-sm font-medium text-primary">{sdr.name}</span>
+            </div>
+            <div className="relative">
+                <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(o => !o); }}
+                    className={cx(
+                        "flex items-center justify-center rounded-md p-1.5 text-fg-quaternary transition-opacity hover:bg-secondary_subtle",
+                        isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                    )}
+                >
+                    <DotsVertical className="size-4" />
+                </button>
+                {isMenuOpen && <BoardCardMenu onClose={() => setIsMenuOpen(false)} onArchive={() => { onArchive(sdr); setIsMenuOpen(false); }} onViewHistory={() => { setIsMenuOpen(false); onPersonClick(sdr); }} />}
+            </div>
+        </div>
+    );
+};
+
+// AM card — draggable (to move tier) + droppable (to receive SDR reassignment)
+const DraggableAMCard = ({ am, sdrs, onArchive, onPersonClick }: { am: Broker; sdrs: Broker[]; onArchive: (b: Broker) => void; onPersonClick: (b: Broker) => void }) => {
+    const { setNodeRef: setDragRef, attributes, listeners, isDragging } = useDraggable({
+        id: `am:${am.id}`,
+        data: { type: "am", amId: am.id },
+    });
+    const { setNodeRef: setDropRef, isOver } = useDroppable({
+        id: `am:${am.id}`,
+        data: { type: "am", amId: am.id, tier: am.tier },
+    });
+    const { active } = useDndContext();
+    const isDraggingSDR = active?.data.current?.type === "sdr";
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const setRef = useCallback((node: HTMLDivElement | null) => {
+        setDragRef(node);
+        setDropRef(node);
+    }, [setDragRef, setDropRef]);
+
+    return (
+        <div
+            ref={setRef}
+            className={cx(
+                "flex flex-col gap-2 rounded-xl px-2 transition-colors",
+                isDragging && "opacity-40",
+                isOver && isDraggingSDR && "bg-brand-50 ring-1 ring-brand-300",
+            )}
+        >
+            <div
+                {...listeners}
+                {...attributes}
+                className="group flex h-[72px] cursor-grab active:cursor-grabbing select-none items-center gap-3 rounded-xl pl-1 pr-2 transition-colors hover:bg-secondary_subtle"
+            >
+                <Avatar size="md" src={am.avatar} initials={am.initials} />
+                <div
+                    className="flex min-w-0 flex-1 flex-col"
+                    onClick={(e) => { e.stopPropagation(); onPersonClick(am); }}
+                >
+                    <span className="truncate text-sm font-medium text-primary">{am.name}</span>
+                    <span className="text-sm text-quaternary">Account Manager</span>
+                </div>
+                <div className="relative">
+                    <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); setIsMenuOpen(o => !o); }}
+                        className={cx(
+                            "flex items-center justify-center rounded-md p-1.5 text-fg-quaternary transition-opacity hover:bg-secondary_subtle",
+                            isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                        )}
+                    >
+                        <DotsVertical className="size-4" />
+                    </button>
+                    {isMenuOpen && <BoardCardMenu onClose={() => setIsMenuOpen(false)} onArchive={() => { onArchive(am); setIsMenuOpen(false); }} onViewHistory={() => { setIsMenuOpen(false); onPersonClick(am); }} />}
+                </div>
+            </div>
+            {sdrs.length > 0 && (
+                <div className="flex flex-col gap-2 pb-2 pl-1">
+                    {sdrs.map(sdr => <DraggableSDRRow key={sdr.id} sdr={sdr} onArchive={onArchive} onPersonClick={onPersonClick} />)}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Unassigned SDR row — draggable (no CornerDownRight)
+const DraggableUnassignedSDR = ({ sdr, onArchive, onPersonClick }: { sdr: Broker; onArchive: (b: Broker) => void; onPersonClick: (b: Broker) => void }) => {
+    const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+        id: `sdr:${sdr.id}`,
+        data: { type: "sdr", sdrId: sdr.id },
+    });
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    return (
+        <div
+            ref={setNodeRef}
+            {...listeners}
+            {...attributes}
+            className={cx(
+                "group flex cursor-grab active:cursor-grabbing select-none items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-secondary_subtle",
+                isDragging && "opacity-40",
+            )}
+        >
+            <Avatar size="md" initials={sdr.initials} />
+            <div
+                className="flex min-w-0 flex-1 flex-col"
+                onClick={(e) => { e.stopPropagation(); onPersonClick(sdr); }}
+            >
+                <span className="truncate text-sm font-medium text-primary">{sdr.name}</span>
+                <span className="text-sm text-quaternary">SDR</span>
+            </div>
+            <div className="relative">
+                <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(o => !o); }}
+                    className={cx(
+                        "flex items-center justify-center rounded-md p-1.5 text-fg-quaternary transition-opacity hover:bg-secondary_subtle",
+                        isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                    )}
+                >
+                    <DotsVertical className="size-4" />
+                </button>
+                {isMenuOpen && <BoardCardMenu onClose={() => setIsMenuOpen(false)} onArchive={() => { onArchive(sdr); setIsMenuOpen(false); }} onViewHistory={() => { setIsMenuOpen(false); onPersonClick(sdr); }} />}
+            </div>
+        </div>
+    );
+};
+
+// Tier column droppable wrapper
+const DroppableTierColumn = ({ tier, label, badge, children }: {
+    tier: BrokerTier;
+    label: string;
+    badge: React.ReactNode;
+    children: React.ReactNode;
+}) => {
+    const colId = tier === null ? "col:unassigned" : `col:${tier}`;
+    const { setNodeRef, isOver } = useDroppable({ id: colId, data: { type: "column", tier } });
+    const { active, over } = useDndContext();
+    const isDraggingAM = active?.data.current?.type === "am";
+    // Highlight if the pointer is over this column's empty area OR over any AM card that lives in this tier
+    const isColumnHighlighted = isDraggingAM && (
+        isOver ||
+        (over?.data.current?.type === "am" && over?.data.current?.tier === tier)
+    );
+    return (
+        <div
+            ref={setNodeRef}
+            className={cx(
+                "scrollbar-hide w-72 shrink-0 overflow-y-auto pb-4 rounded-xl transition-all",
+                isColumnHighlighted && "ring-2 ring-brand-solid ring-offset-2 ring-offset-secondary",
+            )}
+        >
+            <PanelCard title={label} badge={badge}>{children}</PanelCard>
+        </div>
+    );
+};
+
+// Floating save/reset bar
+const BrokerSaveBar = ({ changedAMs, changedSDRs, onSave, onReset }: {
+    changedAMs: number;
+    changedSDRs: number;
+    onSave: () => void;
+    onReset: () => void;
+}) => {
+    const total = changedAMs + changedSDRs;
+    const parts: string[] = [];
+    if (changedAMs > 0) parts.push(`${changedAMs} Account Manager${changedAMs > 1 ? "s" : ""}`);
+    if (changedSDRs > 0) parts.push(`${changedSDRs} SDR${changedSDRs > 1 ? "s" : ""}`);
+    return (
+        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
+            <div className="flex min-w-[560px] items-center gap-3 rounded-xl border border-secondary bg-primary p-4 shadow-lg">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-brand-solid">
+                    <UserEdit className="size-5 text-brand" />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-sm font-semibold text-primary whitespace-nowrap">{total} unsaved change{total !== 1 ? "s" : ""}</span>
+                    <div className="flex items-center gap-1">
+                        {parts.map((part, i) => (
+                            <>
+                                {i > 0 && <span key={`dot-${i}`} className="size-1 shrink-0 rounded-full bg-fg-tertiary" />}
+                                <span key={part} className="text-sm text-tertiary whitespace-nowrap">{part}</span>
+                            </>
+                        ))}
+                    </div>
+                </div>
+                <div className="flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={onReset}
+                        title="Reset changes"
+                        className="flex items-center justify-center rounded-lg border border-secondary bg-primary p-2.5 shadow-xs transition hover:bg-primary_hover"
+                    >
+                        <RefreshCcw01 className="size-5 text-fg-quaternary" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onSave}
+                        title="Save changes"
+                        className="flex items-center justify-center rounded-lg border-2 border-white/10 bg-brand-solid p-2.5 shadow-xs transition hover:opacity-90"
+                    >
+                        <Save01 className="size-5 text-white" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const BROKER_TIER_COLUMNS: { tier: BrokerTier; label: string }[] = [
+    { tier: "priority", label: "Priority"   },
+    { tier: "tier-s",   label: "Tier S"     },
+    { tier: "tier-1",   label: "Tier 1"     },
+    { tier: "tier-2",   label: "Tier 2"     },
+    { tier: "tier-3",   label: "Tier 3"     },
+    { tier: "tier-4",   label: "Tier 4"     },
+    { tier: "tier-5",   label: "Tier 5"     },
+    { tier: "tier-6",   label: "Tier 6"     },
+    { tier: null,       label: "Unassigned" },
+];
+
+const BrokersPage = ({ onArchive, pendingRestore, onRestoreConsumed, onMoveToUnderwriters }: {
+    onArchive: (user: ArchivedUser) => void;
+    pendingRestore: Broker | null;
+    onRestoreConsumed: () => void;
+    onMoveToUnderwriters: (uw: Underwriter) => void;
+}) => {
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState("");
+    const [toastIcon, setToastIcon] = useState<React.FC<{ className?: string }>>(() => UsersX);
+    const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const showToast = useCallback((message?: string, icon?: React.FC<{ className?: string }>) => {
+        if (message) setToastMessage(message);
+        setToastIcon(() => icon ?? CheckDone01);
+        setToastVisible(true);
+        clearTimeout(toastTimer.current);
+        toastTimer.current = setTimeout(() => setToastVisible(false), 2500);
+    }, []);
+    const [search, setSearch] = useState("");
+    const [tierFilter, setTierFilter] = useState("All tiers");
+    const [unassignedFilter, setUnassignedFilter] = useState("Show all");
+    const [view, setView] = useState<"table" | "board">("table");
+    const [page, setPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [sortCol, setSortCol] = useState<BrokerSortCol>("name");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+    const boardDrag = useDragScroll();
+
+    // Local broker state for drag-and-drop edits
+    const [localBrokers, setLocalBrokers] = useState<Broker[]>(() => BROKERS_DATA.map(b => ({ ...b })));
+    const [savedBrokers, setSavedBrokers] = useState<Broker[]>(() => BROKERS_DATA.map(b => ({ ...b })));
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [selectedPerson, setSelectedPerson] = useState<{ person: ModalPerson; index: number } | null>(null);
+    const [isClosingPerson, setIsClosingPerson] = useState(false);
+
+    useEffect(() => {
+        if (!pendingRestore) return;
+        setLocalBrokers(prev => prev.find(b => b.id === pendingRestore.id) ? prev : [pendingRestore, ...prev]);
+        setSavedBrokers(prev => prev.find(b => b.id === pendingRestore.id) ? prev : [pendingRestore, ...prev]);
+        onRestoreConsumed();
+    }, [pendingRestore]);
+
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+    const changedAMs = useMemo(() =>
+        localBrokers.filter(b => {
+            const saved = savedBrokers.find(x => x.id === b.id)!;
+            return b.role === "Account Manager" && b.tier !== saved.tier;
+        }).length,
+    [localBrokers, savedBrokers]);
+
+    const changedSDRs = useMemo(() =>
+        localBrokers.filter(b => {
+            const saved = savedBrokers.find(x => x.id === b.id)!;
+            return b.role === "SDR" && b.managerId !== saved.managerId;
+        }).length,
+    [localBrokers, savedBrokers]);
+
+    const hasChanges = changedAMs > 0 || changedSDRs > 0;
+
+    const handleDragStart = ({ active }: DragStartEvent) => {
+        setActiveId(active.id as string);
+    };
+
+    const handleDragEnd = ({ active, over }: DragEndEvent) => {
+        setActiveId(null);
+        if (!over) return;
+        const dragType = (active.data.current as { type: string }).type;
+        const overId = over.id as string;
+
+        if (dragType === "am") {
+            const amId = (active.data.current as { amId: string }).amId;
+            let newTier: BrokerTier | null = null;
+            let valid = false;
+            if (overId.startsWith("col:")) {
+                const part = overId.slice(4);
+                if (part !== "unassigned") { newTier = part as BrokerTier; valid = true; }
+            } else if (overId.startsWith("am:")) {
+                const targetId = overId.slice(3);
+                const target = localBrokers.find(b => b.id === targetId);
+                if (target?.tier) { newTier = target.tier; valid = true; }
+            }
+            if (valid) {
+                setLocalBrokers(prev => {
+                    const updated = prev.map(b => b.id === amId ? { ...b, tier: newTier } : b);
+                    // Find the first AM in the target tier (other than the one we just moved) and insert before it
+                    const firstInTier = prev.find(b => b.id !== amId && b.role === "Account Manager" && b.tier === newTier);
+                    if (!firstInTier) return updated;
+                    const amIdx = updated.findIndex(b => b.id === amId);
+                    const targetIdx = updated.findIndex(b => b.id === firstInTier.id);
+                    if (amIdx === targetIdx - 1) return updated; // already at top
+                    const result = [...updated];
+                    const [dragged] = result.splice(amIdx, 1);
+                    const insertAt = result.findIndex(b => b.id === firstInTier.id);
+                    result.splice(insertAt, 0, dragged);
+                    return result;
+                });
+            }
+        } else if (dragType === "sdr") {
+            const sdrId = (active.data.current as { sdrId: string }).sdrId;
+            if (overId.startsWith("am:")) {
+                const amId = overId.slice(3);
+                setLocalBrokers(prev => prev.map(b => b.id === sdrId ? { ...b, managerId: amId } : b));
+            } else if (overId === "col:unassigned") {
+                setLocalBrokers(prev => prev.map(b => b.id === sdrId ? { ...b, managerId: undefined } : b));
+            }
+        }
+    };
+
+    const handleArchiveBroker = (broker: Broker) => {
+        onArchive({
+            id: broker.id,
+            name: broker.name,
+            initials: broker.initials,
+            avatar: broker.avatar,
+            role: broker.role,
+            tier: broker.tier ?? undefined,
+            assignment: getBrokerAssignment(broker, localBrokers) || undefined,
+            _broker: broker,
+        });
+        const remove = (prev: Broker[]) => {
+            const without = prev.filter(b => b.id !== broker.id);
+            return broker.role === "Account Manager"
+                ? without.map(b => b.managerId === broker.id ? { ...b, managerId: undefined } : b)
+                : without;
+        };
+        setLocalBrokers(remove);
+        setSavedBrokers(remove);
+        setOpenMenuId(null);
+        showToast(`${broker.name} archived`, UsersX);
+    };
+
+    const handleClosePerson = () => {
+        setIsClosingPerson(true);
+        setTimeout(() => { setSelectedPerson(null); setIsClosingPerson(false); }, 150);
+    };
+
+    const handlePersonTierChange = (personId: string, newTier: BrokerTier | "underwriter") => {
+        if (newTier === "underwriter") {
+            const broker = localBrokers.find(b => b.id === personId);
+            if (!broker) return;
+            const remove = (prev: Broker[]) => prev.filter(b => b.id !== personId);
+            setLocalBrokers(remove);
+            setSavedBrokers(remove);
+            handleClosePerson();
+            onMoveToUnderwriters({ id: broker.id, name: broker.name, initials: broker.initials, avatar: broker.avatar, role: "Underwriter" });
+            showToast(`${broker.name} moved to Underwriters`, Users01);
+        } else {
+            setLocalBrokers(prev => prev.map(b => b.id === personId ? { ...b, tier: newTier } : b));
+        }
+    };
+
+    const openPersonModal = (broker: Broker, allBrokers: Broker[]) => {
+        const sdrs = allBrokers.filter(b => b.role === "SDR" && b.managerId === broker.id);
+        const manager = broker.managerId ? allBrokers.find(b => b.id === broker.managerId) : null;
+        const modal: ModalPerson = {
+            id: broker.id,
+            name: broker.name,
+            initials: broker.initials,
+            avatar: broker.avatar,
+            role: broker.role,
+            tier: broker.tier,
+            managedSdrs: sdrs.map(s => ({ name: s.name, initials: s.initials, avatar: s.avatar })),
+            managerName: manager?.name,
+        };
+        const allVisible = allBrokers;
+        const idx = allVisible.findIndex(b => b.id === broker.id);
+        setSelectedPerson({ person: modal, index: Math.max(0, idx) });
+    };
+
+    const handleSort = (col: BrokerSortCol) => {
+        if (col === sortCol) setSortDir(d => d === "asc" ? "desc" : "asc");
+        else { setSortCol(col); setSortDir("asc"); }
+        setPage(1);
+    };
+
+    const filtered = localBrokers.filter((b) => {
+        if (search && !b.name.toLowerCase().includes(search.toLowerCase())) return false;
+        if (tierFilter === "Priority"   && b.tier !== "priority") return false;
+        if (tierFilter === "Tier S"     && b.tier !== "tier-s")   return false;
+        if (tierFilter === "Tier 1"     && b.tier !== "tier-1")   return false;
+        if (tierFilter === "Tier 2"     && b.tier !== "tier-2")   return false;
+        if (tierFilter === "Tier 3"     && b.tier !== "tier-3")   return false;
+        if (tierFilter === "Tier 4"     && b.tier !== "tier-4")   return false;
+        if (tierFilter === "Tier 5"     && b.tier !== "tier-5")   return false;
+        if (tierFilter === "Tier 6"     && b.tier !== "tier-6")   return false;
+        if (tierFilter === "Unassigned" && b.tier !== null)        return false;
+        if (unassignedFilter === "Show Unassigned"  && !(b.role === "SDR" && !b.managerId)) return false;
+        if (unassignedFilter === "Hide Unassigned"  &&   b.role === "SDR" && !b.managerId)  return false;
+        return true;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+        let cmp = 0;
+        if (sortCol === "name")            cmp = a.name.localeCompare(b.name);
+        else if (sortCol === "role")       cmp = a.role.localeCompare(b.role);
+        else if (sortCol === "tier")       cmp = (BROKER_TIER_ORDER[a.tier ?? ""] ?? 99) - (BROKER_TIER_ORDER[b.tier ?? ""] ?? 99);
+        else if (sortCol === "assignment") cmp = getBrokerAssignment(a, localBrokers).localeCompare(getBrokerAssignment(b, localBrokers));
+        return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(sorted.length / rowsPerPage));
+    const pageRows = sorted.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+    const pages: (number | "…")[] = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        pages.push(1, 2, 3);
+        if (page > 4) pages.push("…");
+        if (page > 3 && page < totalPages - 2) pages.push(page);
+        if (page < totalPages - 3) pages.push("…");
+        pages.push(totalPages - 1, totalPages);
+    }
+
+    const thCls = "h-11 cursor-pointer select-none border-b border-secondary px-6 py-3 text-left";
+    const SortIcon = ({ col }: { col: BrokerSortCol }) =>
+        sortCol === col
+            ? (sortDir === "asc" ? <ArrowUp className="size-3 text-tertiary" /> : <ArrowDown className="size-3 text-tertiary" />)
+            : <ChevronSelectorVertical className="size-3 text-quaternary" />;
+
+    const header = (
+        <div className="shrink-0 px-5 pt-5 pb-4">
+            <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
+                <div className="flex items-center gap-4 px-5 py-4">
+                    <h1 className="text-lg font-semibold text-primary">Broker team</h1>
+                    <BadgeWithDot type="modern" color="error" size="sm">
+                        {localBrokers.filter(b => b.role === "SDR" && !b.managerId).length} people not assigned
+                    </BadgeWithDot>
+                    <Badge type="modern" color="gray" size="sm">{localBrokers.length} people</Badge>
+                    <Badge type="modern" color="gray" size="sm">{localBrokers.filter(b => b.role === "Account Manager").length} AMs</Badge>
+                    <Badge type="modern" color="gray" size="sm">{localBrokers.filter(b => b.role === "SDR").length} SDRs</Badge>
+                    <div className="ml-auto">
+                        <Input size="sm" placeholder="Search" icon={SearchLg} wrapperClassName="w-64" value={search} onChange={setSearch} />
+                    </div>
+                    <div className="flex h-11 items-center rounded-lg border border-secondary bg-primary p-1 shadow-xs">
+                        <button
+                            type="button"
+                            onClick={() => setView("table")}
+                            title="List view"
+                            className={cx(
+                                "flex h-full w-8 items-center justify-center rounded-md cursor-pointer",
+                                view === "table" ? "bg-active shadow-xs text-fg-secondary" : "text-fg-quaternary hover:text-fg-quaternary_hover",
+                            )}
+                        >
+                            <Table className="size-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setView("board")}
+                            title="Board view"
+                            className={cx(
+                                "flex h-full w-8 items-center justify-center rounded-md cursor-pointer",
+                                view === "board" ? "bg-active shadow-xs text-fg-secondary" : "text-fg-quaternary hover:text-fg-quaternary_hover",
+                            )}
+                        >
+                            <AlignTopArrow02 className="size-4" />
+                        </button>
+                    </div>
+                </div>
+                <div className="rounded-xl border border-secondary bg-primary">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                        <LeadsSimpleFilter
+                            label="All tiers"
+                            options={["All tiers", "Priority", "Tier S", "Tier 1", "Tier 2", "Tier 3", "Tier 4", "Tier 5", "Tier 6", "Unassigned"]}
+                            value={tierFilter}
+                            onChange={(v) => { setTierFilter(v); setPage(1); }}
+                        />
+                        <LeadsSimpleFilter
+                            label="Show all"
+                            options={["Show all", "Show Unassigned", "Hide Unassigned"]}
+                            value={unassignedFilter}
+                            onChange={(v) => { setUnassignedFilter(v); setPage(1); }}
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <>
+        <CopyToast visible={toastVisible} message={toastMessage} icon={toastIcon} />
+        <div className={cx("flex flex-1 flex-col", view === "table" ? "overflow-x-auto overflow-y-auto" : "overflow-hidden")}>
+        {view === "table" ? (
+            <div className="flex min-w-[900px] flex-col">
+                {header}
+
+                {/* Table */}
+                <div className="px-5 pb-5">
+                    <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
+                        <table className="w-full border-collapse">
+                            <thead className="sticky top-0 z-10 bg-secondary">
+                                <tr>
+                                    <th className={thCls} onClick={() => handleSort("name")}>
+                                        <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Name</span><SortIcon col="name" /></div>
+                                    </th>
+                                    <th className={thCls} onClick={() => handleSort("role")}>
+                                        <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Role</span><SortIcon col="role" /></div>
+                                    </th>
+                                    <th className={thCls} onClick={() => handleSort("tier")}>
+                                        <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Tier</span><SortIcon col="tier" /></div>
+                                    </th>
+                                    <th className={thCls} onClick={() => handleSort("assignment")}>
+                                        <div className="inline-flex items-center gap-1"><span className="text-xs font-semibold text-quaternary">Assignment</span><SortIcon col="assignment" /></div>
+                                    </th>
+                                    <th className="h-11 w-16 border-b border-secondary" />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {pageRows.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="bg-primary px-6 py-10 text-center text-sm text-tertiary">
+                                            No brokers match your filters.
+                                        </td>
+                                    </tr>
+                                ) : pageRows.map((broker) => (
+                                    <tr key={broker.id} className="group cursor-pointer" onClick={() => openPersonModal(broker, localBrokers)}>
+                                        <TD>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar size="sm" src={broker.avatar} initials={broker.initials} />
+                                                <span className="font-medium text-primary">{broker.name}</span>
+                                            </div>
+                                        </TD>
+                                        <TD>{broker.role}</TD>
+                                        <TD>
+                                            {broker.tier
+                                                ? <BrokerTierBadge tier={broker.tier} />
+                                                : broker.role === "Account Manager"
+                                                    ? <span className="text-sm text-quaternary">Unassigned</span>
+                                                    : null}
+                                        </TD>
+                                        <TD>{getBrokerAssignment(broker, localBrokers)}</TD>
+                                        <TD className="border-r">
+                                            <div className="relative flex items-center justify-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); setOpenMenuId(id => id === broker.id ? null : broker.id); }}
+                                                    className={cx(
+                                                        "flex items-center justify-center rounded-md p-1.5 text-fg-quaternary transition-opacity hover:bg-secondary_subtle",
+                                                        openMenuId === broker.id ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                                                    )}
+                                                >
+                                                    <DotsVertical className="size-4" />
+                                                </button>
+                                                {openMenuId === broker.id && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                                                        <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-secondary bg-primary shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+                                                            <div className="py-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); openPersonModal(broker, localBrokers); }}
+                                                                    className="mx-1.5 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-secondary transition-colors hover:bg-secondary_subtle"
+                                                                >
+                                                                    <ClockRewind className="size-4 shrink-0" />
+                                                                    Show history
+                                                                </button>
+                                                                <div className="my-1 border-t border-secondary" />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => { e.stopPropagation(); handleArchiveBroker(broker); }}
+                                                                    className="mx-1.5 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-[#d92d20] transition-colors hover:bg-[#fff1f0]"
+                                                                >
+                                                                    <UsersX className="size-4 shrink-0" />
+                                                                    Archive user
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </TD>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        {/* Pagination */}
+                        <div className="flex shrink-0 items-center justify-between border-t border-secondary px-5 pt-5 pb-4">
+                            <button
+                                type="button"
+                                disabled={page === 1}
+                                onClick={() => setPage(p => p - 1)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-secondary bg-primary px-3 py-2 text-sm font-semibold text-secondary transition hover:bg-primary_hover disabled:cursor-not-allowed disabled:text-disabled"
+                            >
+                                <ArrowLeft className="size-5" /> Previous
+                            </button>
+                            <div className="flex items-center gap-0.5">
+                                {pages.map((p, i) => (
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        disabled={p === "…"}
+                                        onClick={() => typeof p === "number" && setPage(p)}
+                                        className={cx(
+                                            "flex size-10 items-center justify-center rounded-lg text-sm font-medium transition",
+                                            p === page ? "bg-primary_hover text-secondary" : "text-tertiary hover:bg-primary_hover",
+                                            p === "…" && "cursor-default",
+                                        )}
+                                    >
+                                        {p}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <FilterSelect
+                                    value={String(rowsPerPage)}
+                                    onChange={(v) => { setRowsPerPage(Number(v)); setPage(1); }}
+                                    options={["10", "50", "100"]}
+                                    selectClassName="py-2"
+                                />
+                                <button
+                                    type="button"
+                                    disabled={page === totalPages}
+                                    onClick={() => setPage(p => p + 1)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-secondary bg-primary px-3 py-2 text-sm font-semibold text-secondary transition hover:bg-primary_hover disabled:cursor-not-allowed disabled:text-disabled"
+                                >
+                                    Next <ArrowRight className="size-5" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ) : (
+            <>
+                <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                    {header}
+                    <div
+                        ref={boardDrag.ref}
+                        {...(activeId ? {} : boardDrag.dragProps)}
+                        className="scrollbar-hide flex-1 overflow-x-auto overflow-y-hidden"
+                    >
+                        <div className="flex h-full gap-4 pl-5 pt-2">
+                            {BROKER_TIER_COLUMNS.map(({ tier, label }) => {
+                                const isUnassigned = tier === null;
+                                const colAMs = isUnassigned
+                                    ? [] as Broker[]
+                                    : filtered.filter(b => b.role === "Account Manager" && b.tier === tier);
+                                const unassignedSDRs = isUnassigned
+                                    ? filtered.filter(b => b.role === "SDR" && !b.managerId)
+                                    : [] as Broker[];
+                                const totalCount = isUnassigned ? unassignedSDRs.length : colAMs.length;
+                                const badge = (
+                                    <div className="flex w-[22px] items-center justify-center rounded-md border border-secondary px-1.5 py-0.5">
+                                        <span className="text-center text-xs font-medium text-secondary">{totalCount}</span>
+                                    </div>
+                                );
+                                return (
+                                    <DroppableTierColumn key={label} tier={tier} label={label} badge={badge}>
+                                        {totalCount === 0 ? (
+                                            <ColumnEmptyState label={label} />
+                                        ) : isUnassigned ? (
+                                            unassignedSDRs.map(sdr => <DraggableUnassignedSDR key={sdr.id} sdr={sdr} onArchive={handleArchiveBroker} onPersonClick={(b) => openPersonModal(b, localBrokers)} />)
+                                        ) : (
+                                            colAMs.map(am => {
+                                                const amSdrs = localBrokers.filter(b => b.managerId === am.id);
+                                                return <DraggableAMCard key={am.id} am={am} sdrs={amSdrs} onArchive={handleArchiveBroker} onPersonClick={(b) => openPersonModal(b, localBrokers)} />;
+                                            })
+                                        )}
+                                    </DroppableTierColumn>
+                                );
+                            })}
+                            <div className="w-4 shrink-0" />
+                        </div>
+                    </div>
+
+                    {/* Drag overlay — follows cursor */}
+                    <DragOverlay dropAnimation={null}>
+                        {activeId ? (() => {
+                            const isAM = activeId.startsWith("am:");
+                            const brokerId = activeId.startsWith("am:") ? activeId.slice(3) : activeId.slice(4);
+                            const broker = localBrokers.find(b => b.id === brokerId);
+                            if (!broker) return null;
+                            if (isAM) {
+                                const amSdrs = localBrokers.filter(b => b.managerId === broker.id);
+                                return (
+                                    <div className="w-72 rounded-xl border border-brand-300 bg-primary shadow-lg pointer-events-none">
+                                        <BrokerCardStatic am={broker} sdrs={amSdrs} />
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div className="flex w-64 items-center gap-2 rounded-xl border border-brand-300 bg-primary px-2 py-2 shadow-lg pointer-events-none">
+                                    <Avatar size="xs" src={broker.avatar} initials={broker.initials} />
+                                    <span className="flex-1 truncate text-sm font-medium text-primary">{broker.name}</span>
+                                </div>
+                            );
+                        })() : null}
+                    </DragOverlay>
+                </DndContext>
+
+                {hasChanges && (
+                    <BrokerSaveBar
+                        changedAMs={changedAMs}
+                        changedSDRs={changedSDRs}
+                        onSave={() => setShowSaveConfirm(true)}
+                        onReset={() => setLocalBrokers(savedBrokers.map(b => ({ ...b })))}
+                    />
+                )}
+            </>
+        )}
+
+        {selectedPerson && (
+            <PersonDetailModal
+                person={selectedPerson.person}
+                personIndex={selectedPerson.index}
+                totalPersons={localBrokers.length}
+                isClosing={isClosingPerson}
+                onClose={handleClosePerson}
+                onPrev={() => {
+                    const prev = localBrokers[selectedPerson.index - 1];
+                    if (prev) openPersonModal(prev, localBrokers);
+                }}
+                onNext={() => {
+                    const next = localBrokers[selectedPerson.index + 1];
+                    if (next) openPersonModal(next, localBrokers);
+                }}
+                onArchive={() => { handleClosePerson(); setTimeout(() => handleArchiveBroker(localBrokers.find(b => b.id === selectedPerson.person.id)!), 160); }}
+                onTierChange={(tier) => handlePersonTierChange(selectedPerson.person.id, tier)}
+            />
+        )}
+
+        {showSaveConfirm && (
+            <div
+                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+                onClick={() => setShowSaveConfirm(false)}
+            >
+                <div
+                    className="relative w-full max-w-[480px] overflow-hidden rounded-2xl bg-primary shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="relative flex flex-col gap-4 px-6 pt-6">
+                        <button
+                            type="button"
+                            onClick={() => setShowSaveConfirm(false)}
+                            className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-lg text-fg-quaternary transition hover:bg-primary_hover hover:text-secondary"
+                        >
+                            <XClose className="size-5" />
+                        </button>
+                        <div className="flex size-12 items-center justify-center rounded-full bg-brand-100">
+                            <UserEdit className="size-6 text-brand-600" />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <p className="text-lg font-semibold text-primary">Save changes</p>
+                            <p className="text-sm text-tertiary">Are you sure you want to save {changedAMs + changedSDRs} assignment change{changedAMs + changedSDRs !== 1 ? "s" : ""}?</p>
+                        </div>
+                    </div>
+                    <div className="mt-8 flex gap-3 border-t border-secondary px-6 py-6">
+                        <button
+                            type="button"
+                            onClick={() => setShowSaveConfirm(false)}
+                            className="flex flex-1 items-center justify-center rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-secondary shadow-xs transition hover:bg-primary_hover"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setSavedBrokers(localBrokers.map(b => ({ ...b }))); setShowSaveConfirm(false); }}
+                            className="flex flex-1 items-center justify-center rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:opacity-90"
+                        >
+                            Save changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </div>
+        </>
+    );
+};
+
+// ─── Underwriters page ────────────────────────────────────────────────────────
+
+interface Underwriter {
+    id: string;
+    name: string;
+    initials: string;
+    avatar?: string;
+    role: "Underwriter";
+}
+
+const UNDERWRITERS_DATA: Underwriter[] = [
+    { id: "uw1", name: "Rachel Kim",     initials: "RK" },
+    { id: "uw2", name: "James Crawford", initials: "JC" },
+    { id: "uw3", name: "Priya Mehta",    initials: "PM" },
+    { id: "uw4", name: "Daniel Foster",  initials: "DF" },
+].map(u => ({ ...u, role: "Underwriter" as const }));
+
+const UnderwritersPage = ({ onArchive, pendingRestore, onRestoreConsumed, onMoveToBrokers }: {
+    onArchive: (user: ArchivedUser) => void;
+    pendingRestore: Underwriter | null;
+    onRestoreConsumed: () => void;
+    onMoveToBrokers: (broker: Broker) => void;
+}) => {
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState("");
+    const [toastIcon, setToastIcon] = useState<React.FC<{ className?: string }>>(() => UsersX);
+    const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const showToast = useCallback((message?: string, icon?: React.FC<{ className?: string }>) => {
+        if (message) setToastMessage(message);
+        setToastIcon(() => icon ?? CheckDone01);
+        setToastVisible(true);
+        clearTimeout(toastTimer.current);
+        toastTimer.current = setTimeout(() => setToastVisible(false), 2500);
+    }, []);
+    const [search, setSearch] = useState("");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+    const [underwriters, setUnderwriters] = useState<Underwriter[]>(() => UNDERWRITERS_DATA.map(u => ({ ...u })));
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [selectedPerson, setSelectedPerson] = useState<{ person: ModalPerson; index: number } | null>(null);
+    const [isClosingPerson, setIsClosingPerson] = useState(false);
+
+    useEffect(() => {
+        if (!pendingRestore) return;
+        setUnderwriters(prev => prev.find(u => u.id === pendingRestore.id) ? prev : [pendingRestore, ...prev]);
+        onRestoreConsumed();
+    }, [pendingRestore]);
+
+    const handleClosePerson = () => {
+        setIsClosingPerson(true);
+        setTimeout(() => { setSelectedPerson(null); setIsClosingPerson(false); }, 150);
+    };
+
+    const openPersonModal = (uw: Underwriter, all: Underwriter[]) => {
+        const modal: ModalPerson = { id: uw.id, name: uw.name, initials: uw.initials, avatar: uw.avatar, role: uw.role };
+        const idx = all.findIndex(u => u.id === uw.id);
+        setSelectedPerson({ person: modal, index: Math.max(0, idx) });
+    };
+
+    const thCls = "h-11 cursor-pointer select-none border-b border-secondary px-6 py-3 text-left";
+
+    const rows = underwriters
+        .filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()))
+        .sort((a, b) => sortDir === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+
+    const handleArchiveUnderwriter = (uw: Underwriter) => {
+        onArchive({ id: uw.id, name: uw.name, initials: uw.initials, avatar: uw.avatar, role: uw.role, _underwriter: uw });
+        setUnderwriters(prev => prev.filter(u => u.id !== uw.id));
+        setOpenMenuId(null);
+        showToast(`${uw.name} archived`, UsersX);
+    };
+
+    const handlePersonTierChange = (personId: string, newTier: BrokerTier | "underwriter") => {
+        if (newTier === "underwriter") return;
+        const uw = underwriters.find(u => u.id === personId);
+        if (!uw) return;
+        setUnderwriters(prev => prev.filter(u => u.id !== personId));
+        handleClosePerson();
+        onMoveToBrokers({ id: uw.id, name: uw.name, initials: uw.initials, avatar: uw.avatar, role: "Account Manager", tier: newTier });
+        showToast(`${uw.name} moved to Brokers`, Users01);
+    };
+
+    return (
+        <>
+        <CopyToast visible={toastVisible} message={toastMessage} icon={toastIcon} />
+        <div className="flex flex-1 flex-col overflow-y-auto">
+            <div className="shrink-0 px-5 pt-5 pb-4">
+                <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
+                    <div className="flex items-center gap-4 px-5 py-4">
+                        <h1 className="text-lg font-semibold text-primary">Underwriters</h1>
+                        <Badge type="modern" color="gray" size="sm">{underwriters.length} people</Badge>
+                        <div className="ml-auto">
+                            <Input size="sm" placeholder="Search" icon={SearchLg} wrapperClassName="w-64" value={search} onChange={setSearch} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="px-5 pb-5">
+                <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
+                    <table className="w-full border-collapse">
+                        <thead className="sticky top-0 z-10 bg-secondary">
+                            <tr>
+                                <th className={thCls} onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}>
+                                    <div className="inline-flex items-center gap-1">
+                                        <span className="text-xs font-semibold text-quaternary">Name</span>
+                                        {sortDir === "asc"
+                                            ? <ArrowUp className="size-3 text-tertiary" />
+                                            : <ArrowDown className="size-3 text-tertiary" />}
+                                    </div>
+                                </th>
+                                <th className={cx(thCls, "cursor-default")}>
+                                    <span className="text-xs font-semibold text-quaternary">Role</span>
+                                </th>
+                                <th className="h-11 w-16 border-b border-secondary" />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={3} className="bg-primary px-6 py-10 text-center text-sm text-tertiary">
+                                        No underwriters match your search.
+                                    </td>
+                                </tr>
+                            ) : rows.map(u => (
+                                <tr key={u.id} className="group cursor-pointer" onClick={() => openPersonModal(u, rows)}>
+                                    <TD>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar size="sm" src={u.avatar} initials={u.initials} />
+                                            <span className="font-medium text-primary">{u.name}</span>
+                                        </div>
+                                    </TD>
+                                    <TD>{u.role}</TD>
+                                    <TD className="border-r">
+                                        <div className="relative flex items-center justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(id => id === u.id ? null : u.id); }}
+                                                className={cx(
+                                                    "flex items-center justify-center rounded-md p-1.5 text-fg-quaternary transition-opacity hover:bg-secondary_subtle",
+                                                    openMenuId === u.id ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                                                )}
+                                            >
+                                                <DotsVertical className="size-4" />
+                                            </button>
+                                            {openMenuId === u.id && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                                                    <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-secondary bg-primary shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+                                                        <div className="py-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); openPersonModal(u, rows); }}
+                                                                className="mx-1.5 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-secondary transition-colors hover:bg-secondary_subtle"
+                                                            >
+                                                                <ClockRewind className="size-4 shrink-0" />
+                                                                Show history
+                                                            </button>
+                                                            <div className="my-1 border-t border-secondary" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); handleArchiveUnderwriter(u); }}
+                                                                className="mx-1.5 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-[#d92d20] transition-colors hover:bg-[#fff1f0]"
+                                                            >
+                                                                <UsersX className="size-4 shrink-0" />
+                                                                Archive user
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </TD>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {selectedPerson && (
+                <PersonDetailModal
+                    person={selectedPerson.person}
+                    personIndex={selectedPerson.index}
+                    totalPersons={underwriters.length}
+                    isClosing={isClosingPerson}
+                    onClose={handleClosePerson}
+                    onPrev={() => {
+                        const prev = underwriters[selectedPerson.index - 1];
+                        if (prev) openPersonModal(prev, underwriters);
+                    }}
+                    onNext={() => {
+                        const next = underwriters[selectedPerson.index + 1];
+                        if (next) openPersonModal(next, underwriters);
+                    }}
+                    onArchive={() => { handleClosePerson(); setTimeout(() => handleArchiveUnderwriter(underwriters.find(u => u.id === selectedPerson.person.id)!), 160); }}
+                    onTierChange={(tier) => handlePersonTierChange(selectedPerson.person.id, tier)}
+                />
+            )}
+        </div>
+        </>
+    );
+};
+
+// ─── Archived users page ──────────────────────────────────────────────────────
+
+const ArchivedUsersPage = ({ users, onRestore }: { users: ArchivedUser[]; onRestore: (user: ArchivedUser) => void }) => {
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<"name" | "role" | "tier">("name");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [selectedPerson, setSelectedPerson] = useState<{ person: ModalPerson; index: number } | null>(null);
+    const [isClosingPerson, setIsClosingPerson] = useState(false);
+
+    const handleClosePerson = () => {
+        setIsClosingPerson(true);
+        setTimeout(() => { setSelectedPerson(null); setIsClosingPerson(false); }, 150);
+    };
+
+    const openPersonModal = (u: ArchivedUser, all: ArchivedUser[]) => {
+        const modal: ModalPerson = {
+            id: u.id, name: u.name, initials: u.initials, avatar: u.avatar,
+            role: u.role, tier: u.tier, isArchived: true,
+        };
+        const idx = all.findIndex(a => a.id === u.id);
+        setSelectedPerson({ person: modal, index: Math.max(0, idx) });
+    };
+
+    const thCls = "h-11 cursor-pointer select-none border-b border-secondary px-6 py-3 text-left";
+
+    const handleSort = (col: "name" | "role" | "tier") => {
+        if (col === sortCol) setSortDir(d => d === "asc" ? "desc" : "asc");
+        else { setSortCol(col); setSortDir("asc"); }
+    };
+
+    const SortIcon = ({ col }: { col: "name" | "role" | "tier" }) =>
+        sortCol === col
+            ? (sortDir === "asc" ? <ArrowUp className="size-3 text-tertiary" /> : <ArrowDown className="size-3 text-tertiary" />)
+            : <ChevronSelectorVertical className="size-3 text-quaternary" />;
+
+    const rows = users
+        .filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()))
+        .sort((a, b) => {
+            let cmp = 0;
+            if (sortCol === "name") cmp = a.name.localeCompare(b.name);
+            else if (sortCol === "role") cmp = a.role.localeCompare(b.role);
+            else if (sortCol === "tier") cmp = (BROKER_TIER_ORDER[a.tier ?? ""] ?? 99) - (BROKER_TIER_ORDER[b.tier ?? ""] ?? 99);
+            return sortDir === "asc" ? cmp : -cmp;
+        });
+
+    return (
+        <div className="flex flex-1 flex-col overflow-y-auto">
+            <div className="shrink-0 px-5 pt-5 pb-4">
+                <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
+                    <div className="flex items-center gap-4 px-5 py-4">
+                        <h1 className="text-lg font-semibold text-primary">Archived users</h1>
+                        <Badge type="modern" color="gray" size="sm">{users.length} people</Badge>
+                        <div className="ml-auto">
+                            <Input size="sm" placeholder="Search" icon={SearchLg} wrapperClassName="w-64" value={search} onChange={setSearch} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="px-5 pb-5">
+                <div className="rounded-xl border border-secondary bg-secondary shadow-xs">
+                    <table className="w-full border-collapse">
+                        <thead className="sticky top-0 z-10 bg-secondary">
+                            <tr>
+                                <th className={thCls} onClick={() => handleSort("name")}>
+                                    <div className="inline-flex items-center gap-1">
+                                        <span className="text-xs font-semibold text-quaternary">Name</span>
+                                        <SortIcon col="name" />
+                                    </div>
+                                </th>
+                                <th className={thCls} onClick={() => handleSort("role")}>
+                                    <div className="inline-flex items-center gap-1">
+                                        <span className="text-xs font-semibold text-quaternary">Role</span>
+                                        <SortIcon col="role" />
+                                    </div>
+                                </th>
+                                <th className={thCls} onClick={() => handleSort("tier")}>
+                                    <div className="inline-flex items-center gap-1">
+                                        <span className="text-xs font-semibold text-quaternary">Tier</span>
+                                        <SortIcon col="tier" />
+                                    </div>
+                                </th>
+                                <th className={cx(thCls, "cursor-default")}>
+                                    <span className="text-xs font-semibold text-quaternary">Assignment</span>
+                                </th>
+                                <th className="h-11 w-16 border-b border-secondary" />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="bg-primary px-6 py-10 text-center text-sm text-tertiary">
+                                        {users.length === 0 ? "No users have been archived yet." : "No archived users match your search."}
+                                    </td>
+                                </tr>
+                            ) : rows.map(u => (
+                                <tr key={u.id} className="group cursor-pointer" onClick={() => openPersonModal(u, rows)}>
+                                    <TD>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar size="sm" src={u.avatar} initials={u.initials} />
+                                            <span className="font-medium text-primary">{u.name}</span>
+                                        </div>
+                                    </TD>
+                                    <TD>{u.role}</TD>
+                                    <TD>{u.tier ? <BrokerTierBadge tier={u.tier} /> : <span className="text-quaternary">—</span>}</TD>
+                                    <TD>{u.assignment ?? <span className="text-quaternary">—</span>}</TD>
+                                    <TD className="border-r">
+                                        <div className="relative flex items-center justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(id => id === u.id ? null : u.id); }}
+                                                className={cx(
+                                                    "flex items-center justify-center rounded-md p-1.5 text-fg-quaternary transition-opacity hover:bg-secondary_subtle",
+                                                    openMenuId === u.id ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                                                )}
+                                            >
+                                                <DotsVertical className="size-4" />
+                                            </button>
+                                            {openMenuId === u.id && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                                                    <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-secondary bg-primary shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+                                                        <div className="py-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); openPersonModal(u, rows); }}
+                                                                className="mx-1.5 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-secondary transition-colors hover:bg-secondary_subtle"
+                                                            >
+                                                                <ClockRewind className="size-4 shrink-0" />
+                                                                View history
+                                                            </button>
+                                                            <div className="my-1 border-t border-secondary" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); onRestore(u); setOpenMenuId(null); }}
+                                                                className="mx-1.5 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-secondary transition-colors hover:bg-secondary_subtle"
+                                                            >
+                                                                <RefreshCcw01 className="size-4 shrink-0" />
+                                                                Restore user
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </TD>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {selectedPerson && (
+                <PersonDetailModal
+                    person={selectedPerson.person}
+                    personIndex={selectedPerson.index}
+                    totalPersons={users.length}
+                    isClosing={isClosingPerson}
+                    onClose={handleClosePerson}
+                    onPrev={() => {
+                        const prev = rows[selectedPerson.index - 1];
+                        if (prev) openPersonModal(prev, rows);
+                    }}
+                    onNext={() => {
+                        const next = rows[selectedPerson.index + 1];
+                        if (next) openPersonModal(next, rows);
+                    }}
+                    onRestore={() => {
+                        const user = users.find(u => u.id === selectedPerson.person.id);
+                        if (user) { handleClosePerson(); setTimeout(() => onRestore(user), 160); }
+                    }}
+                />
+            )}
+        </div>
+    );
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export const LoveyPortal = () => {
@@ -7004,6 +9426,21 @@ export const LoveyPortal = () => {
         });
     };
 
+    const handleRevert = (leadId: string, targetStage: LeadStage) => {
+        setLeadsData((prev) => {
+            const currentStage = (Object.keys(prev) as LeadStage[]).find((s) =>
+                prev[s].some((l) => l.id === leadId),
+            );
+            if (!currentStage) return prev;
+            const lead = prev[currentStage].find((l) => l.id === leadId)!;
+            const updatedLead = { ...lead, decision: undefined };
+            const newData = { ...prev };
+            newData[currentStage] = prev[currentStage].filter((l) => l.id !== leadId);
+            newData[targetStage] = [...prev[targetStage], updatedLead];
+            return newData;
+        });
+    };
+
     const leadIdMatch = pathname.match(/^\/portal\/lead\/(.+)$/);
     const selectedLeadId = leadIdMatch?.[1] ?? null;
     const selectedLead = selectedLeadId ? stageLeads.find((l) => l.id === selectedLeadId) ?? null : null;
@@ -7011,10 +9448,22 @@ export const LoveyPortal = () => {
     const isLeadsPage = !selectedLeadId && pathname === "/portal/leads";
     const isTasksPage = !selectedLeadId && pathname === "/portal/tasks";
     const isAppsPage    = !selectedLeadId && (pathname === "/portal/applications" || pathname === "/portal/borrowers");
+    const isBrokersPage        = !selectedLeadId && pathname === "/portal/brokers";
+    const isUnderwritersPage   = !selectedLeadId && pathname === "/portal/underwriters";
+    const isArchivedPage       = !selectedLeadId && pathname === "/portal/archived";
     const isNoAccessPage   = !selectedLeadId && pathname === "/portal/noaccess";
     const isSupportPage    = !selectedLeadId && pathname === "/portal/bug";
     const searchRef = useRef<HTMLInputElement>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [archivedUsers, setArchivedUsers] = useState<ArchivedUser[]>([]);
+    const [pendingBrokerRestore, setPendingBrokerRestore] = useState<Broker | null>(null);
+    const [pendingUwRestore, setPendingUwRestore] = useState<Underwriter | null>(null);
+    const handleArchive = (user: ArchivedUser) => setArchivedUsers(prev => [user, ...prev]);
+    const handleRestore = (user: ArchivedUser) => {
+        setArchivedUsers(prev => prev.filter(u => u.id !== user.id));
+        if (user._broker) setPendingBrokerRestore(user._broker);
+        else if (user._underwriter) setPendingUwRestore(user._underwriter);
+    };
     const [view, setView] = useState<"board" | "table">("table");
     const [hideEmptyColumns, setHideEmptyColumns] = useState(false);
 
@@ -7129,7 +9578,7 @@ export const LoveyPortal = () => {
 
             {selectedLead ? (
                 <div className="flex flex-1 flex-col overflow-hidden">
-                    <LeadDetailView lead={selectedLead} onDecision={(d) => handleDecision(selectedLead.id, d)} />
+                    <LeadDetailView lead={selectedLead} onDecision={(d) => handleDecision(selectedLead.id, d)} onRevert={(s) => handleRevert(selectedLead.id, s)} />
                 </div>
             ) : isHomePage ? (
                 <PortalHomePage onRefresh={handleRefresh} isRefreshing={isRefreshing} />
@@ -7189,6 +9638,12 @@ export const LoveyPortal = () => {
                     </>
                 )}
             </div>
+            ) : isBrokersPage ? (
+                <BrokersPage onArchive={handleArchive} pendingRestore={pendingBrokerRestore} onRestoreConsumed={() => setPendingBrokerRestore(null)} onMoveToUnderwriters={(uw) => setPendingUwRestore(uw)} />
+            ) : isUnderwritersPage ? (
+                <UnderwritersPage onArchive={handleArchive} pendingRestore={pendingUwRestore} onRestoreConsumed={() => setPendingUwRestore(null)} onMoveToBrokers={(broker) => setPendingBrokerRestore(broker)} />
+            ) : isArchivedPage ? (
+                <ArchivedUsersPage users={archivedUsers} onRestore={handleRestore} />
             ) : isSupportPage ? (
                 <FeatureRequest />
             ) : isNoAccessPage ? (

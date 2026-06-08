@@ -1,11 +1,12 @@
-import { ChangeEvent, Fragment, useEffect, useRef, useState } from "react";
+import { ChangeEvent, Fragment, ReactNode, useEffect, useRef, useState } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { AlertCircle, AnnotationQuestion, ArrowLeft, ArrowRight, AtSign, BookOpen01, Building06, Check, CheckCircle, CheckSquareBroken, ChevronSelectorVertical, CreditCardRefresh, Dice1, Dice2, Dice3, Dice4, Disc01, FileCheck02, FileHeart02, Flag05, HelpCircle, Hourglass01, InfoCircle, Loading01, Mail01, Mail05, Menu02, MoonStar, Placeholder, Plus, QrCode02, SearchMd, Settings01, Share05, Sun, UploadCloud02, User01, Users01, XClose, ZapFast } from "@untitledui/icons";
-import { motion } from "motion/react";
+import { AlertCircle, AnnotationQuestion, ArrowLeft, ArrowRight, AtSign, BookOpen01, Building06, Check, CheckCircle, CheckSquareBroken, ChevronSelectorVertical, Dice1, Dice2, Dice3, Dice4, Disc01, FileCheck02, FileHeart02, Flag05, HelpCircle, Hourglass01, InfoCircle, Loading01, Lock01, Mail01, Mail05, Menu02, MinusCircle, MoonStar, PiggyBank01, Placeholder, Plus, PlusCircle, SearchMd, Settings01, Share05, Sun, UploadCloud02, User01, Users01, XClose } from "@untitledui/icons";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import type { DateValue } from "react-aria-components";
 import { DateField } from "@/components/application/date-picker/date-field";
 import { MonthYearField } from "@/components/application/date-picker/month-year-field";
 import { Button } from "@/components/base/buttons/button";
+import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { BadgeWithIcon } from "@/components/base/badges/badges";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/base/input/input";
@@ -91,6 +92,59 @@ const ProgressSteps = ({ currentStep = 1, totalSteps = 3 }: { currentStep?: numb
         ))}
     </div>
 );
+
+// Money input with a leading £ (matches the dashboard input styling)
+const MoneyInput = ({
+    value,
+    onChange,
+    placeholder = "100,000",
+    inputMode = "numeric",
+    trailing,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+    placeholder?: string;
+    inputMode?: "numeric" | "text";
+    trailing?: ReactNode;
+}) => (
+    <div className="flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset ring-primary focus-within:ring-2 focus-within:ring-brand overflow-hidden">
+        <div className="flex items-center pl-3.5 shrink-0">
+            <span className="text-placeholder text-md">£</span>
+        </div>
+        <input
+            type="text"
+            inputMode={inputMode}
+            pattern={inputMode === "numeric" ? "[0-9,]*" : undefined}
+            placeholder={placeholder}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="flex-1 min-w-0 bg-transparent text-md text-primary pl-0.5 pr-3.5 outline-none placeholder:text-placeholder"
+        />
+        {trailing && <div className="flex items-center pr-3 shrink-0">{trailing}</div>}
+    </div>
+);
+
+// Stacked-paper step transition config (motion).
+// Each step is a "sheet" of paper. Advancing slides a fresh sheet up from the bottom while the
+// previous one recedes to the back of the stack; going back slides the current sheet off the bottom.
+const STACK_LIP = 12; // px of each completed sheet that peeks above the active one
+const STACK_SCALE = 0.02; // how much narrower each sheet gets per depth level
+// Animation speed multiplier for tuning: 1 = normal, 2 = half speed. Set back to 1 when dialed in.
+const ANIM_SPEED = 1;
+const paperSpring = { type: "spring" as const, duration: 0.6 * ANIM_SPEED, bounce: 0.18 };
+const paperVariants: Variants = {
+    enter: (dir: number) =>
+        dir > 0
+            ? { y: "100%", scale: 1, opacity: 1, zIndex: 30 } // forward: rise from the bottom, on top
+            : { y: 0, scale: 1 - STACK_SCALE, opacity: 1, zIndex: 10 }, // back: grow forward from the peek pose
+    center: (dir: number) => ({ y: 0, scale: 1, opacity: 1, zIndex: dir > 0 ? 30 : 10 }),
+    exit: (dir: number) =>
+        dir > 0
+            // forward: shrink in place into the stack. The lip comes from the growing spacer pushing the new
+            // active sheet down, so the receding sheet lands exactly on the static decorative sheet's pose.
+            ? { y: 0, scale: 1 - STACK_SCALE, opacity: 1, zIndex: 10 }
+            : { y: "100%", scale: 1, opacity: 0, zIndex: 30 }, // back: slide off the bottom while fading out
+};
 
 // Skeleton progress steps
 const ProgressStepsSkeleton = () => (
@@ -511,36 +565,26 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
     // Dashboard step navigation + animation
     const [dashStep, setDashStep] = useState(externalDashStep ?? 1);
     const [displayedDashStep, setDisplayedDashStep] = useState(externalDashStep ?? 1);
-    const [dashAnimPhase, setDashAnimPhase] = useState<"idle" | "fadeOut" | "resize" | "fadeIn">("idle");
-    const dashAnimPhaseRef = useRef(dashAnimPhase);
-    dashAnimPhaseRef.current = dashAnimPhase;
-    const [dashContentHeight, setDashContentHeight] = useState<number | "auto">("auto");
+    // Stacked-paper step transition. slideDir: 1 = forward (new sheet slides up over the stack), -1 = backward.
+    const [slideDir, setSlideDir] = useState(1);
+    const stepAnimatingRef = useRef(false);
     const step1ContentRef = useRef<HTMLDivElement>(null);
     const step2ContentRef = useRef<HTMLDivElement>(null);
     const step3ContentRef = useRef<HTMLDivElement>(null);
     const step4ContentRef = useRef<HTMLDivElement>(null);
     const step5ContentRef = useRef<HTMLDivElement>(null);
     const dashScrollContainerRef = useRef<HTMLDivElement>(null);
-    const FADE_DURATION = 100;
-    const RESIZE_DURATION = 400;
-
-    const getStepContentRef = (step: number) => {
-        if (step === 1) return step1ContentRef;
-        if (step === 2) return step2ContentRef;
-        if (step === 3) return step3ContentRef;
-        if (step === 4) return step4ContentRef;
-        return step5ContentRef;
-    };
 
     // Sync with external debug navigation
     useEffect(() => {
         if (externalDashStep != null) {
             if (externalDashStep === 6) {
-                // Jump directly to the done screen (skip loading)
+                // Jump directly to the submitted sheet (step 6).
                 setShowDashDone(true);
-                setDisplayedDashDone(true);
+                setDashStep(6);
+                setDisplayedDashStep(6);
             } else {
-                // Navigate to a regular step (and exit done screen if needed)
+                // Navigate to a regular step (and exit the submitted view if needed)
                 setShowDashDone(false);
                 setDisplayedDashDone(false);
                 if (externalDashStep !== dashStep) {
@@ -552,7 +596,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
 
     // Step config
     const stepConfigs: Record<number, { stepNumber: number; title: string; progress: number; nextStep: string }> = {
-        1: { stepNumber: 1, title: "Your Business", progress: 20, nextStep: "Directors" },
+        1: { stepNumber: 1, title: "Your Business", progress: 20, nextStep: "Legal bits" },
         2: { stepNumber: 2, title: "Legal Bits", progress: 40, nextStep: "Directors" },
         3: { stepNumber: 3, title: "Directors", progress: 60, nextStep: "Finances" },
         4: { stepNumber: 4, title: "Finances", progress: 80, nextStep: "Check" },
@@ -568,55 +612,36 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
     const [showVideoModal, setShowVideoModal] = useState(false);
 
     // Plaid Link
-    const { openPlaidLink, loading: plaidLoading, error: plaidError, success: plaidSuccess } = usePlaid();
+    const { success: plaidSuccess } = usePlaid();
 
     // Submit / Done states
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDashDone, setShowDashDone] = useState(false);
     const [displayedDashDone, setDisplayedDashDone] = useState(false);
+    // "What happens now?" FAQ accordion on the submitted view (first item open by default)
+    const [openFaq, setOpenFaq] = useState<number | null>(0);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [doneActivePage, setDoneActivePage] = useState<DoneActivePage>("pending");
 
-    // Card-level height animation (for step 5 → done transition)
-    const [cardHeight, setCardHeight] = useState<number | "auto">("auto");
-    const [cardAnimPhase, setCardAnimPhase] = useState<"idle" | "fadeOut" | "resize" | "fadeIn">("idle");
     const cardContentRef = useRef<HTMLDivElement>(null);
     const doneContentRef = useRef<HTMLDivElement>(null);
 
     const handleSubmitApplication = () => {
+        if (stepAnimatingRef.current) return;
         setIsSubmitting(true);
+        // Brief "submitting" state on the button, then slide the submitted sheet up over the whole stack.
         setTimeout(() => {
             setIsSubmitting(false);
-
-            const currentHeight = cardContentRef.current?.offsetHeight || 0;
-            setCardHeight(currentHeight);
-
-            requestAnimationFrame(() => {
-                setCardAnimPhase("fadeOut");
-
-                setTimeout(() => {
-                    setDisplayedDashDone(true);
-                    setShowDashDone(true);
-                    onStepChange?.(6);
-
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            const targetHeight = doneContentRef.current?.offsetHeight || 0;
-                            setCardHeight(targetHeight);
-                            setCardAnimPhase("resize");
-
-                            setTimeout(() => {
-                                setCardHeight("auto");
-                                setCardAnimPhase("fadeIn");
-
-                                setTimeout(() => {
-                                    setCardAnimPhase("idle");
-                                }, FADE_DURATION);
-                            }, RESIZE_DURATION);
-                        });
-                    });
-                }, FADE_DURATION);
-            });
+            stepAnimatingRef.current = true;
+            setSlideDir(1);
+            setShowDashDone(true);
+            onStepChange?.(6);
+            setDashStep(6);
+            setDisplayedDashStep(6);
+            dashScrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
+            setTimeout(() => {
+                stepAnimatingRef.current = false;
+            }, STEP_ANIM_MS);
         }, 1000);
     };
 
@@ -678,15 +703,16 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
         dateOfBirth: DateValue | null;
         email: string;
         emailError: boolean;
+        phone: string;
         ownership: number;
         addresses: AddressEntry[];
         addressSearching: Record<number, boolean>;
         addressDropdownOpen: Record<number, boolean>;
         addressSearchText: Record<number, string>;
     }
-    const showStep3Info = true;
-    const step3InfoVisible = true;
     const [directorInfoMap, setDirectorInfoMap] = useState<Record<string, DirectorInfo>>({});
+    // The single director who is the applicant for the loan (defaults to the first/top director).
+    const [applicantDirectorId, setApplicantDirectorId] = useState(applicants[0].id);
     const directorAddressInputRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const directorAddressSearchTimeouts = useRef<Record<string, NodeJS.Timeout | null>>({});
 
@@ -694,6 +720,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
         dateOfBirth: null,
         email: "",
         emailError: false,
+        phone: "",
         ownership: 0,
         addresses: [{ address: "", movedIn: null, movedOut: null }],
         addressSearching: {},
@@ -798,19 +825,14 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
         });
     }, [directorInfoMap]);
 
-    const isDashboardStep3Valid = (() => {
-        let cumulativeOwnership = 0;
-        for (const d of applicants) {
-            const info = getDirectorInfo(d.id);
-            const hasEmail = info.email && !info.emailError;
-            const hasFirstAddress = info.addresses[0].address !== "";
-            const hasFirstMovedIn = info.addresses[0].movedIn !== null;
-            if (hasEmail && hasFirstAddress && hasFirstMovedIn) {
-                cumulativeOwnership += d.ownership;
-            }
-        }
-        return cumulativeOwnership >= 50;
-    })();
+    // Every director must be complete, and the applicant must have a phone number.
+    const isDashboardStep3Valid = applicants.every((d) => {
+        const info = getDirectorInfo(d.id);
+        const hasEmail = info.email !== "" && !info.emailError;
+        const hasFirstAddress = info.addresses[0].address !== "";
+        const hasFirstMovedIn = info.addresses[0].movedIn !== null;
+        return hasEmail && hasFirstAddress && hasFirstMovedIn;
+    }) && getDirectorInfo(applicantDirectorId).phone.trim() !== "";
 
     // Step 4 state - finances
     const [turnover12Months, setTurnover12Months] = useState("");
@@ -818,11 +840,15 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
     const [newDebt, setNewDebt] = useState("");
     const [profitLoss, setProfitLoss] = useState("");
     const [vatRegistered, setVatRegistered] = useState(false);
+    // Finances yes/no questions (null = unanswered)
+    const [tookOnNewDebt, setTookOnNewDebt] = useState<boolean | null>(null);
+    const [wasProfitable, setWasProfitable] = useState<boolean | null>(null);
 
     const turnoverNumeric = parseFloat(turnover12Months.replace(/,/g, "")) || 0;
     const vatAutoTicked = turnoverNumeric > 89999;
 
-    const isDashboardStep4Valid = plaidSuccess || uploadStatementsCount > 0 || uploadAccountsCount > 0;
+    // Step 4 (document upload) is optional — Continue is always enabled.
+    const isDashboardStep4Valid = true;
 
     // Address history state - starts with one empty entry
     const [addresses, setAddresses] = useState<AddressEntry[]>([
@@ -889,23 +915,6 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
 
     const handleCloseMenu = () => setShowMobileMenu(false);
 
-    // Handle toggling the welcome banner
-    const handleToggleWelcome = () => {
-        if (showWelcomeBanner) {
-            // Dismiss: first fade out, then collapse
-            setWelcomeBannerVisible(false);
-            setTimeout(() => {
-                setShowWelcomeBanner(false);
-            }, 150);
-        } else {
-            // Show: first expand, then fade in
-            setShowWelcomeBanner(true);
-            setTimeout(() => {
-                setWelcomeBannerVisible(true);
-            }, 50);
-        }
-    };
-
     // Check if we need to add more address rows (less than 3 years of history)
     const totalMonths = calculateTotalMonths(addresses);
     const needsMoreAddresses = addresses[addresses.length - 1].movedIn !== null && totalMonths < 36;
@@ -962,57 +971,42 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
         manualAddressEntry
             ? (manualAddressLine1 !== "" && manualAddressCity !== "" && manualAddressPostcode !== "")
             : tradingAddress !== ""
-    ) && turnover12Months !== "" && turnover2019 !== "" && newDebt !== "" && profitLoss !== "" && loanTerm !== "" && loanReason !== "";
+    ) && turnover12Months !== "" && turnover2019 !== "" && loanTerm !== "" && loanReason !== ""
+        && tookOnNewDebt !== null && (tookOnNewDebt === false || newDebt !== "")
+        && wasProfitable !== null && profitLoss !== "";
 
     // Animate dashboard step transition (same pattern as animateToStep in LoanApplication)
+    // Slide to a dashboard step as a stacked-paper transition (motion/AnimatePresence does the work).
+    const STEP_ANIM_MS = 600 * ANIM_SPEED;
     const animateToDashStep = (targetStep: number) => {
-        if (dashAnimPhaseRef.current !== "idle" || targetStep === displayedDashStep) return;
+        if (stepAnimatingRef.current || targetStep === displayedDashStep || targetStep < 1 || targetStep > 5) return;
+        stepAnimatingRef.current = true;
 
-        // Sync URL with the new dashboard step
+        setSlideDir(targetStep > displayedDashStep ? 1 : -1);
         onStepChange?.(targetStep);
-
-        // Get current content height and lock it
-        const currentRef = getStepContentRef(displayedDashStep);
-        const currentHeight = currentRef.current?.offsetHeight || 0;
-        setDashContentHeight(currentHeight);
-
-        // Update header immediately
         setDashStep(targetStep);
-
-        // Scroll to top on mobile when changing steps
+        setDisplayedDashStep(targetStep);
         dashScrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
 
-        // Phase 1: Fade out content
-        requestAnimationFrame(() => {
-            setDashAnimPhase("fadeOut");
+        // Release the lock once the spring has settled.
+        setTimeout(() => {
+            stepAnimatingRef.current = false;
+        }, STEP_ANIM_MS);
+    };
 
-            // After fade out, swap content and resize
-            setTimeout(() => {
-                setDisplayedDashStep(targetStep);
-
-                // Wait for React to render new content, then measure and resize
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        const targetRef = getStepContentRef(targetStep);
-                        const targetHeight = targetRef.current?.offsetHeight || 0;
-                        setDashContentHeight(targetHeight);
-                        setDashAnimPhase("resize");
-
-                        // After resize, fade in
-                        setTimeout(() => {
-                            setDashContentHeight("auto");
-                            setDashAnimPhase("fadeIn");
-                            dashScrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
-
-                            // After fade in, return to idle
-                            setTimeout(() => {
-                                setDashAnimPhase("idle");
-                            }, FADE_DURATION);
-                        }, RESIZE_DURATION);
-                    });
-                });
-            }, FADE_DURATION);
-        });
+    // Per-step validity + header/footer navigation helpers
+    const stepValidity: Record<number, boolean> = {
+        1: isDashboardStep1Valid,
+        2: isDashboardStep2Valid,
+        3: isDashboardStep3Valid,
+        4: isDashboardStep4Valid,
+        5: true,
+    };
+    const isCurrentStepValid = stepValidity[dashStep] ?? false;
+    const goNextStep = () => {
+        if (!isCurrentStepValid) return;
+        if (dashStep < 5) animateToDashStep(dashStep + 1);
+        else handleSubmitApplication();
     };
 
     return (
@@ -1031,38 +1025,15 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
 
             {/* Body */}
             <div className={cx("flex-1 flex flex-col items-center md:px-8 lg:px-15", !showDashDone && "md:pb-24")}>
-                {/* Main card container - white bg only on desktop */}
-                <div className={cx("w-full md:bg-primary md:rounded-2xl md:shadow-xl", showDashDone && "md:overflow-hidden")}>
-                    {/* Shared header — outside fade so progress bar transitions live (desktop hidden on done; sidebar owns that space) */}
-                    <div className={cx("px-2 pt-4 pb-4 bg-secondary md:bg-transparent", showDashDone ? "md:hidden" : "md:px-8 md:pt-8 md:pb-0")}>
-                        <DashboardHeader
-                            stepNumber={showDashDone ? undefined : stepConfig.stepNumber}
-                            title={showDashDone ? "Loan Application Submitted" : stepConfig.title}
-                            progress={showDashDone ? 100 : stepConfig.progress}
-                            nextStep={showDashDone ? "Dashboard done" : stepConfig.nextStep}
-                            showWelcomeBanner={showWelcomeBanner}
-                            onToggleWelcome={handleToggleWelcome}
-                            onOpenMenu={showDashDone ? () => setShowMobileMenu(true) : undefined}
-                        />
+                {/* Journey progress — 7 steps (3 completed in the capture form), shown outside the white card */}
+                {!showDashDone && (
+                    <div className="w-full max-w-256 px-2 md:px-0 pt-2 pb-4 md:pt-0 md:pb-6">
+                        <ProgressSteps currentStep={Math.min(8, 3 + dashStep)} totalSteps={8} />
                     </div>
-                    {/* Shared mobile progress bar */}
-                    <div className="md:hidden h-1 w-full bg-fg-senary overflow-hidden">
-                        <motion.div
-                            className="h-full bg-brand-solid rounded-r-full"
-                            initial={false}
-                            animate={{ width: `${showDashDone ? 100 : stepConfig.progress}%` }}
-                            transition={{ duration: 0.4, ease: "easeInOut" }}
-                        />
-                    </div>
-                    <div style={{
-                        height: cardHeight === "auto" ? "auto" : `${cardHeight}px`,
-                        transition: cardAnimPhase === "resize" ? `height ${RESIZE_DURATION}ms ease-in-out` : undefined,
-                        overflow: cardAnimPhase !== "idle" ? "hidden" : undefined,
-                    }}>
-                    <div style={{
-                        opacity: cardAnimPhase === "fadeOut" || cardAnimPhase === "resize" ? 0 : 1,
-                        transition: `opacity ${FADE_DURATION}ms ease-in-out`,
-                    }}>
+                )}
+                {/* Main card container - capped at 1024px. The done view is one white panel; the form steps
+                    are a stack of paper "sheets" that each carry their own panel background. */}
+                <div className="w-full max-w-256 relative">
                     {displayedDashDone ? (
                         <div ref={doneContentRef}>
                         <>
@@ -1310,7 +1281,221 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                         </>
                         </div>
                     ) : (
-                    <div ref={cardContentRef} className="flex flex-col items-center md:pb-16 md:px-8">
+                    <>
+                    {/* Desktop-only spacer leaving room above the active paper for the stacked sheet lips (steps only) */}
+                    {displayedDashStep !== 6 && <div aria-hidden className="hidden md:block" style={{ height: Math.max(0, dashStep - 1) * STACK_LIP }} />}
+                    {/* Decorative stacked sheets behind the active paper — one per completed step. Hidden on the
+                        submitted sheet so it slides up and covers all the peeks. */}
+                    {displayedDashStep !== 6 && Array.from({ length: Math.max(0, dashStep - 1) }).map((_, i) => {
+                        const depth = dashStep - 1 - i; // 1 = sheet directly behind, larger = deeper in the stack
+                        return (
+                            <div
+                                key={`sheet-${i}`}
+                                aria-hidden
+                                className="hidden md:block absolute left-0 right-0 bg-primary border border-secondary rounded-2xl shadow-2xl"
+                                style={{
+                                    top: (dashStep - 1 - depth) * STACK_LIP,
+                                    bottom: 0,
+                                    transform: `scale(${1 - depth * STACK_SCALE})`,
+                                    transformOrigin: "top center",
+                                    zIndex: Math.max(1, 9 - depth),
+                                }}
+                            />
+                        );
+                    })}
+                    <AnimatePresence mode="popLayout" custom={slideDir} initial={false}>
+                        <motion.div
+                            key={displayedDashStep}
+                            custom={slideDir}
+                            variants={paperVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            transition={paperSpring}
+                            className="relative origin-top"
+                        >
+                    {/* Page-colored cover dragged below this sheet to mask the receding sheet behind it.
+                        Lower z than the sheet, so the sheet's own drop shadow still paints over it. */}
+                    <div aria-hidden className="hidden md:block absolute inset-x-0 top-0 bg-tertiary" style={{ height: "300%", zIndex: -10 }} />
+                    {/* The sheet itself — background, rounding, shadow */}
+                    <div className="relative bg-secondary md:bg-primary md:rounded-2xl md:shadow-xl md:overflow-hidden">
+                    {displayedDashStep === 6 ? (
+                    /* ─── Submitted view (slides up over the whole stack) ─── */
+                    <div className="flex flex-col gap-4 md:gap-6 p-3 md:p-8">
+                        {/* Hero */}
+                        <div className="rounded-xl border border-brand bg-brand-200 overflow-hidden">
+                            <div className="flex flex-col-reverse md:flex-row gap-6 md:gap-10 items-center justify-center px-6 py-6 md:px-8">
+                                <div className="flex flex-col gap-2 text-brand-primary md:w-[274px]">
+                                    <h2 className="text-display-sm font-medium leading-[1.2]">Big Bidess LTD's application for £48,000 is now submitted.</h2>
+                                    <p className="text-md">You're done. There's nothing more you need to do right now, our team will be in touch with next steps.</p>
+                                </div>
+                                <div className="w-[240px] md:w-[270px] h-[360px] md:h-[400px] shrink-0 overflow-hidden">
+                                    <img src="/Card.png" alt="" className="w-full h-full object-cover object-top" />
+                                </div>
+                            </div>
+                        </div>
+                        {/* Card: What happens now? (FAQ) */}
+                        <div className="bg-primary_alt border border-secondary rounded-xl shadow-xs md:shadow-none">
+                            <div className="flex items-center gap-3 pl-4 pr-3 py-3 border-b border-secondary">
+                                <div className="size-8 rounded-full bg-brand-secondary flex items-center justify-center shrink-0">
+                                    <AnnotationQuestion className="size-4 text-fg-brand-primary" />
+                                </div>
+                                <span className="text-md font-semibold text-secondary">What happens now?</span>
+                            </div>
+                            <div className="flex flex-col px-4 md:px-12 py-2">
+                                {[
+                                    { q: "Lorem ipsum dolor sit amet, consectetur adipiscing elit?", a: "Qui et consectetur eiusmod ad deserunt mollit adipisicing nisi." },
+                                    { q: "Lorem ipsum dolor sit amet, consectetur adipiscing elit?", a: "Qui et consectetur eiusmod ad deserunt mollit adipisicing nisi." },
+                                    { q: "Lorem ipsum dolor sit amet, consectetur adipiscing elit?", a: "Qui et consectetur eiusmod ad deserunt mollit adipisicing nisi." },
+                                ].map((item, i) => {
+                                    const isOpen = openFaq === i;
+                                    return (
+                                        <button
+                                            key={i}
+                                            type="button"
+                                            onClick={() => setOpenFaq(isOpen ? null : i)}
+                                            className={cx("flex items-start justify-between gap-6 w-full text-left py-6", i > 0 && "border-t border-secondary")}
+                                        >
+                                            <div className="flex flex-col gap-2 flex-1 min-w-0">
+                                                <p className="text-md font-semibold text-secondary">{item.q}</p>
+                                                {isOpen && <p className="text-md text-tertiary">{item.a}</p>}
+                                            </div>
+                                            {isOpen
+                                                ? <MinusCircle className="size-6 text-fg-quaternary shrink-0" />
+                                                : <PlusCircle className="size-6 text-fg-quaternary shrink-0" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        {/* Card: Missed a document? (same uploads as step 4) */}
+                        <div className="bg-primary_alt border border-secondary rounded-xl shadow-xs md:shadow-none">
+                            <div className="flex items-center gap-3 pl-4 pr-3 py-3 border-b border-secondary">
+                                <div className="size-8 rounded-full bg-brand-secondary flex items-center justify-center shrink-0">
+                                    <FileCheck02 className="size-4 text-fg-brand-primary" />
+                                </div>
+                                <span className="text-md font-semibold text-secondary">Missed a document?</span>
+                            </div>
+                            <div className="p-4 flex flex-col gap-6 md:gap-8">
+                                <div className="flex flex-col gap-4">
+                                    <div className="flex flex-col md:flex-row gap-4">
+                                        <input ref={statementsInputRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleStatementsChange} />
+                                        <button
+                                            type="button"
+                                            onClick={() => statementsInputRef.current?.click()}
+                                            disabled={uploadStatementsStatus === "uploading"}
+                                            className={cx(
+                                                "flex-1 min-w-0 flex items-center justify-center gap-4 md:gap-6 min-h-[100px] px-3 py-3 rounded-xl border transition-colors disabled:cursor-not-allowed",
+                                                uploadStatementsCount > 0 ? "border-solid border-brand" : "border-dashed border-primary hover:bg-primary_hover",
+                                            )}
+                                        >
+                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
+                                                {uploadStatementsStatus === "uploading"
+                                                    ? <Loading01 className="size-5 text-fg-secondary animate-spin" />
+                                                    : uploadStatementsCount > 0
+                                                        ? <CheckSquareBroken className="size-5 text-fg-success-primary" />
+                                                        : <UploadCloud02 className="size-5 text-fg-secondary" />}
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-bold text-secondary">Upload your past 6 months' bank statements</p>
+                                                <p className="text-sm text-tertiary">
+                                                    {uploadStatementsStatus === "uploading"
+                                                        ? "Uploading..."
+                                                        : uploadStatementsCount > 0
+                                                            ? `${uploadStatementsCount} ${uploadStatementsCount === 1 ? "file" : "files"} uploaded`
+                                                            : "PDF, max Xmb"}
+                                                </p>
+                                            </div>
+                                        </button>
+                                        <input ref={accountsInputRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleAccountsChange} />
+                                        <button
+                                            type="button"
+                                            onClick={() => accountsInputRef.current?.click()}
+                                            disabled={uploadAccountsStatus === "uploading"}
+                                            className={cx(
+                                                "flex-1 min-w-0 flex items-center justify-center gap-4 md:gap-6 min-h-[100px] px-3 py-3 rounded-xl border transition-colors disabled:cursor-not-allowed",
+                                                uploadAccountsCount > 0 ? "border-solid border-brand" : "border-dashed border-primary hover:bg-primary_hover",
+                                            )}
+                                        >
+                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
+                                                {uploadAccountsStatus === "uploading"
+                                                    ? <Loading01 className="size-5 text-fg-secondary animate-spin" />
+                                                    : uploadAccountsCount > 0
+                                                        ? <CheckSquareBroken className="size-5 text-fg-success-primary" />
+                                                        : <UploadCloud02 className="size-5 text-fg-secondary" />}
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-bold text-secondary">Upload last full set of accounts</p>
+                                                <p className="text-sm text-tertiary">
+                                                    {uploadAccountsStatus === "uploading"
+                                                        ? "Uploading..."
+                                                        : uploadAccountsCount > 0
+                                                            ? `${uploadAccountsCount} ${uploadAccountsCount === 1 ? "file" : "files"} uploaded`
+                                                            : "PDF, max Xmb"}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center gap-2 p-2 rounded-xl bg-brand-50 border border-brand-200 shadow-xs">
+                                        <div className="size-8 flex items-center justify-center shrink-0">
+                                            <Lock01 className="size-4 text-fg-brand-primary" />
+                                        </div>
+                                        <p className="text-sm text-brand-primary">We need these to find the best rate and lenders need these to assess your application. Your documents are never sold.</p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 p-4 rounded-xl bg-secondary border border-secondary shadow-xs">
+                                    <div className="flex items-start gap-3">
+                                        <div className="size-10 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic flex items-center justify-center shrink-0">
+                                            <Mail05 className="size-5 text-fg-secondary" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <p className="text-sm font-semibold text-primary">Don't have these files at hand?</p>
+                                            <p className="text-sm text-tertiary">Don't worry we've composed an email for you, just send it to your accountant.</p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        color="secondary"
+                                        size="md"
+                                        className="shrink-0 w-full md:w-[220px]"
+                                        onClick={() => {
+                                            const subject = encodeURIComponent("request for paperwork");
+                                            const body = encodeURIComponent("Adipisicing duis fugiat ipsum consectetur officia ea anim pariatur in velit. Labore consectetur Lorem ad occaecat reprehenderit qui occaecat non aliquip sit minim id ad. Adipisicing cillum est ullamco elit laboris dolore aute pariatur adipisicing ea ullamco pariatur.");
+                                            window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+                                        }}
+                                    >
+                                        Request paperwork
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ) : (
+                    <>
+                    {/* Header — part of the sheet, so it slides with the paper */}
+                    <div className="px-2 pt-4 pb-4 bg-secondary md:bg-transparent md:px-8 md:pt-8 md:pb-0">
+                        <div className="flex items-start justify-between w-full gap-4 pl-2">
+                            <div className="flex flex-col">
+                                <h1 className="text-lg md:text-xl font-semibold text-primary">{stepConfig.title}</h1>
+                                <p className="text-sm md:text-md text-tertiary">Big Bidess LTD - £48,000</p>
+                            </div>
+                            {/* Next-up label + forward arrow (desktop) */}
+                            <div className="hidden md:flex items-center gap-3 shrink-0">
+                                <p className="text-right text-md text-quaternary whitespace-nowrap">
+                                    Next up: <span className="font-semibold">{stepConfig.nextStep}</span>
+                                </p>
+                                <Button
+                                    color="primary"
+                                    size="lg"
+                                    iconLeading={ArrowRight}
+                                    isDisabled={!isCurrentStepValid}
+                                    onClick={goNextStep}
+                                    aria-label={`Next: ${stepConfig.nextStep}`}
+                                    className="shrink-0 *:data-icon:text-white"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div ref={cardContentRef} className="flex flex-col items-center md:pb-8 md:px-8">
                         {/* Inner content container */}
                         <div className="flex flex-col w-full max-w-240">
 
@@ -1363,16 +1548,9 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                 </div>
                             </div>
 
-                            {/* Animated content area */}
-                            <div style={{
-                                height: dashContentHeight === "auto" ? "auto" : `${dashContentHeight}px`,
-                                transition: dashAnimPhase === "resize" ? `height ${RESIZE_DURATION}ms ease-in-out` : undefined,
-                                overflow: dashAnimPhase !== "idle" ? "hidden" : undefined,
-                            }}>
-                            <div style={{
-                                opacity: dashAnimPhase === "fadeOut" || dashAnimPhase === "resize" ? 0 : 1,
-                                transition: `opacity ${FADE_DURATION}ms ease-in-out`,
-                            }}>
+                            {/* Step content (the active sheet) */}
+                            <div>
+                            <div>
 
                             {/* Step 1 content */}
                             {displayedDashStep === 1 && (
@@ -1442,7 +1620,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                         </div>
                                         <span className="text-md font-semibold text-secondary">What address is this company trading from?</span>
                                     </div>
-                                    <Tooltip title="This is a tooltip" description="Tooltips are used to describe or identify an element. In most scenarios, tooltips help the user understand meaning, function or alt-text." arrow placement="top right">
+                                    <Tooltip title="Trading address" description="Your trading address is where your business operates day-to-day. This can be the same or different as your registered address." arrow placement="top right">
                                         <TooltipTrigger className="size-8 flex items-center justify-center">
                                             <HelpCircle className="size-4 text-fg-senary" />
                                         </TooltipTrigger>
@@ -1551,39 +1729,21 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                 <div className="flex items-center justify-between pl-4 pr-3 py-3 border-b border-secondary">
                                     <div className="flex items-center gap-3">
                                         <div className="size-8 rounded-full bg-brand-secondary flex items-center justify-center shrink-0">
-                                            <CreditCardRefresh className="size-4 text-fg-brand-primary" />
+                                            <PiggyBank01 className="size-4 text-fg-brand-primary" />
                                         </div>
                                         <span className="text-md font-semibold text-secondary">Tell us a bit about your finances</span>
                                     </div>
-                                    <Tooltip title="Why do we ask?" description="Your turnover helps lenders understand your business and offer you the right deal. It's only shared with lenders relevant to your application." arrow placement="top right">
-                                        <TooltipTrigger className="size-8 flex items-center justify-center">
-                                            <HelpCircle className="size-4 text-fg-senary" />
-                                        </TooltipTrigger>
-                                    </Tooltip>
                                 </div>
                                 {/* Card body */}
-                                <div className="p-4 flex flex-col gap-4">
+                                <div className="p-4 flex flex-col gap-4 md:gap-6">
                                     {/* Row 1: Turnover 12 months + VAT checkbox */}
-                                    <div className="flex flex-col md:flex-row gap-3 md:items-start">
+                                    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
                                         <div className="flex flex-col gap-1.5 flex-1">
                                             <label className="text-secondary font-medium text-sm">Your turnover for the past 12 months</label>
-                                            <div className="flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset ring-primary focus-within:ring-2 focus-within:ring-brand overflow-hidden">
-                                                <div className="flex items-center pl-3.5 shrink-0">
-                                                    <span className="text-placeholder text-md">£</span>
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    pattern="[0-9,]*"
-                                                    placeholder="100,000"
-                                                    value={turnover12Months}
-                                                    onChange={(e) => setTurnover12Months(e.target.value)}
-                                                    className="flex-1 bg-transparent text-md text-primary pl-0.5 pr-3.5 outline-none placeholder:text-placeholder"
-                                                />
-                                            </div>
+                                            <MoneyInput value={turnover12Months} onChange={setTurnover12Months} />
                                             <p className="text-tertiary text-sm">Feel free to round to the nearest £1000</p>
                                         </div>
-                                        <div className="flex-1 md:pt-7">
+                                        <div className="flex-1 md:pt-8">
                                             <Checkbox
                                                 size="sm"
                                                 isSelected={vatAutoTicked || vatRegistered}
@@ -1594,65 +1754,70 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             />
                                         </div>
                                     </div>
-                                    {/* Row 2: Turnover 2019 + New debt side by side */}
-                                    <div className="flex flex-col md:flex-row gap-3">
+                                    {/* Row 2: Turnover 2019 (with help icon) */}
+                                    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
                                         <div className="flex flex-col gap-1.5 flex-1">
                                             <label className="text-secondary font-medium text-sm">Your turnover in 2019</label>
-                                            <div className="flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset ring-primary focus-within:ring-2 focus-within:ring-brand overflow-hidden">
-                                                <div className="flex items-center pl-3.5 shrink-0">
-                                                    <span className="text-placeholder text-md">£</span>
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    pattern="[0-9,]*"
-                                                    placeholder="100,000"
-                                                    value={turnover2019}
-                                                    onChange={(e) => setTurnover2019(e.target.value)}
-                                                    className="flex-1 bg-transparent text-md text-primary pl-0.5 pr-3.5 outline-none placeholder:text-placeholder"
-                                                />
-                                            </div>
+                                            <MoneyInput
+                                                value={turnover2019}
+                                                onChange={setTurnover2019}
+                                                trailing={
+                                                    <Tooltip title="Why do we ask?" description="Some lenders want a 2019 pre-pandemic baseline. A fairer view of what your business is capable of." arrow placement="top right">
+                                                        <TooltipTrigger className="flex items-center text-fg-quaternary transition-colors hover:text-fg-quaternary_hover">
+                                                            <HelpCircle className="size-4" />
+                                                        </TooltipTrigger>
+                                                    </Tooltip>
+                                                }
+                                            />
                                             <p className="text-tertiary text-sm">Feel free to round to the nearest £1000</p>
                                         </div>
-                                        <div className="flex flex-col gap-1.5 flex-1">
-                                            <label className="text-secondary font-medium text-sm">How much new debt did your business take in the last 12 months?</label>
-                                            <div className="flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset ring-primary focus-within:ring-2 focus-within:ring-brand overflow-hidden">
-                                                <div className="flex items-center pl-3.5 shrink-0">
-                                                    <span className="text-placeholder text-md">£</span>
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    pattern="[0-9,]*"
-                                                    placeholder="0"
-                                                    value={newDebt}
-                                                    onChange={(e) => setNewDebt(e.target.value)}
-                                                    className="flex-1 bg-transparent text-md text-primary pl-0.5 pr-3.5 outline-none placeholder:text-placeholder"
-                                                />
-                                            </div>
-                                            <p className="text-tertiary text-sm">If none, please write 0</p>
-                                        </div>
-                                    </div>
-                                    {/* Row 3: Profit/loss */}
-                                    <div className="flex flex-col md:flex-row gap-3">
-                                        <div className="flex flex-col gap-1.5 flex-1">
-                                            <label className="text-secondary font-medium text-sm">How much profit/loss did you make the last 12 months?</label>
-                                            <div className="flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset ring-primary focus-within:ring-2 focus-within:ring-brand overflow-hidden">
-                                                <div className="flex items-center pl-3.5 shrink-0">
-                                                    <span className="text-placeholder text-md">£</span>
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    inputMode="text"
-                                                    placeholder="0"
-                                                    value={profitLoss}
-                                                    onChange={(e) => setProfitLoss(e.target.value)}
-                                                    className="flex-1 bg-transparent text-md text-primary pl-0.5 pr-3.5 outline-none placeholder:text-placeholder"
-                                                />
-                                            </div>
-                                            <p className="text-tertiary text-sm">For loss, please write a negative number</p>
-                                        </div>
                                         <div className="flex-1 hidden md:block" />
+                                    </div>
+                                    {/* Row 3: New debt yes/no + amount */}
+                                    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
+                                        <div className="flex flex-col gap-1.5 flex-1">
+                                            <label className="text-secondary font-medium text-sm">Did your business take on new debt in the last 12 months?</label>
+                                            <ButtonGroup
+                                                className="flex w-full"
+                                                disallowEmptySelection
+                                                selectedKeys={tookOnNewDebt === null ? [] : [tookOnNewDebt ? "yes" : "no"]}
+                                                onSelectionChange={(keys) => { const k = [...keys][0]; if (k) setTookOnNewDebt(k === "yes"); }}
+                                            >
+                                                <ButtonGroupItem id="yes" className="h-11 flex-1 justify-center font-normal selected:bg-tertiary selected:font-semibold">Yes</ButtonGroupItem>
+                                                <ButtonGroupItem id="no" className="h-11 flex-1 justify-center font-normal selected:bg-tertiary selected:font-semibold">No</ButtonGroupItem>
+                                            </ButtonGroup>
+                                        </div>
+                                        {tookOnNewDebt === true ? (
+                                            <div className="flex flex-col gap-1.5 flex-1">
+                                                <label className="text-secondary font-medium text-sm">How much debt did you take on?</label>
+                                                <MoneyInput value={newDebt} onChange={setNewDebt} />
+                                            </div>
+                                        ) : (
+                                            <div className="flex-1 hidden md:block" />
+                                        )}
+                                    </div>
+                                    {/* Row 4: Profitable yes/no + profit amount */}
+                                    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
+                                        <div className="flex flex-col gap-1.5 flex-1">
+                                            <label className="text-secondary font-medium text-sm">Was your business profitable in the last 12 months?</label>
+                                            <ButtonGroup
+                                                className="flex w-full"
+                                                disallowEmptySelection
+                                                selectedKeys={wasProfitable === null ? [] : [wasProfitable ? "yes" : "no"]}
+                                                onSelectionChange={(keys) => { const k = [...keys][0]; if (k) setWasProfitable(k === "yes"); }}
+                                            >
+                                                <ButtonGroupItem id="yes" className="h-11 flex-1 justify-center font-normal selected:bg-tertiary selected:font-semibold">Yes, we made a profit</ButtonGroupItem>
+                                                <ButtonGroupItem id="no" className="h-11 flex-1 justify-center font-normal selected:bg-tertiary selected:font-semibold">No, we made a loss</ButtonGroupItem>
+                                            </ButtonGroup>
+                                        </div>
+                                        {wasProfitable !== null ? (
+                                            <div className="flex flex-col gap-1.5 flex-1">
+                                                <label className="text-secondary font-medium text-sm">{wasProfitable ? "How much profit did you make?" : "How much was your loss?"}</label>
+                                                <MoneyInput value={profitLoss} onChange={setProfitLoss} />
+                                            </div>
+                                        ) : (
+                                            <div className="flex-1 hidden md:block" />
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1795,29 +1960,6 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                             {/* Step 3 content - Directors */}
                             {displayedDashStep === 3 && (
                             <div ref={step3ContentRef} className="flex flex-col gap-4 md:gap-6 px-2 md:px-0 pt-4 pb-6 md:pt-6 md:pb-0 bg-secondary md:bg-transparent">
-                                {/* Info card - 50% rule */}
-                                <div
-                                    style={{
-                                        opacity: step3InfoVisible ? 1 : 0,
-                                        maxHeight: showStep3Info ? "500px" : "0px",
-                                        overflow: "hidden",
-                                        transition: "opacity 150ms ease-out, max-height 300ms ease-out",
-                                    }}
-                                >
-                                    <div className="bg-primary_alt border border-secondary rounded-xl shadow-xs md:bg-secondary md:shadow-none relative">
-                                        <div className="flex items-center gap-1 pl-4 pr-3 py-3">
-                                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                <div className="size-8 rounded-full bg-tertiary md:bg-primary flex items-center justify-center shrink-0">
-                                                    <InfoCircle className="size-4 text-fg-quaternary" />
-                                                </div>
-                                                <span className="text-md text-secondary">
-                                                    We only need details for directors who together own 50% or more.
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 {[...applicants].sort((a, b) => b.ownership - a.ownership).map((director) => {
                                     const info = getDirectorInfo(director.id);
                                     return (
@@ -1831,22 +1973,20 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                                     </div>
                                                     <span className="text-md font-semibold text-secondary">Tell us more about {director.name}</span>
                                                 </div>
-                                                <span className="text-md text-tertiary shrink-0">{director.ownership}%</span>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="text-md text-tertiary">{director.ownership}%</span>
+                                                    <Tooltip title="Based on data from Companies House, this director owns at least 50% of the company." arrow placement="top right">
+                                                        <TooltipTrigger className="flex items-center justify-center">
+                                                            <HelpCircle className="size-4 text-fg-senary" />
+                                                        </TooltipTrigger>
+                                                    </Tooltip>
+                                                </div>
                                             </div>
                                             {/* Card body */}
                                             <div className="p-4">
                                                 <div className="flex flex-col gap-8 md:gap-6">
-                                                    {/* Group 1: Name, Date of Birth, Email */}
+                                                    {/* Group 1: Date of Birth, Email (+ Phone for the applicant) */}
                                                     <div className="flex flex-col md:flex-row gap-4">
-                                                        <div className="flex-1">
-                                                            <Input
-                                                                label="Name"
-                                                                value={director.name}
-                                                                isDisabled
-                                                                inputClassName="text-disabled"
-                                                                onChange={() => {}}
-                                                            />
-                                                        </div>
                                                         <div className="flex-1">
                                                             <DateField
                                                                 label="Date of Birth"
@@ -1874,6 +2014,18 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                                                 isInvalid={info.emailError}
                                                             />
                                                         </div>
+                                                        {director.id === applicantDirectorId && (
+                                                            <div className="flex-1">
+                                                                <Input
+                                                                    label="Phone number"
+                                                                    placeholder="07700 900000"
+                                                                    type="tel"
+                                                                    autoComplete="tel"
+                                                                    value={info.phone}
+                                                                    onChange={(value) => updateDirectorInfo(director.id, { phone: value })}
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     {/* Group 2: Address rows - same 3-year history logic as step 1 */}
                                                     <div className="flex flex-col gap-4 md:gap-6">
@@ -1959,8 +2111,11 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                         {/* Request info button */}
                                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 -mt-2 pb-6 md:pb-0">
                                             <Checkbox
-                                                label={`${director.name} has granted me permission to give this data`}
-                                                className="px-4 md:px-0 md:max-w-[300px] md:pl-4"
+                                                isSelected={applicantDirectorId === director.id}
+                                                onChange={(checked) => { if (checked) setApplicantDirectorId(director.id); }}
+                                                label={`${director.name} is the applicant for the loan`}
+                                                hint="You need to select exactly one applicant"
+                                                className="px-4 md:px-0 md:max-w-[340px] md:pl-4"
                                             />
                                             <Button
                                                 color="secondary"
@@ -2005,193 +2160,111 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
 
                             {/* Step 4 content - Finances */}
                             {displayedDashStep === 4 && (
-                            <div ref={step4ContentRef} className="flex flex-col gap-4 md:gap-6 px-2 md:px-0 pt-4 md:pt-6 bg-secondary md:bg-transparent">
+                            <div ref={step4ContentRef} className="flex flex-col gap-4 md:gap-6 px-2 md:px-0 pt-4 pb-6 md:pt-6 md:pb-0 bg-secondary md:bg-transparent">
                                 {/* Card: Share some of your accounts */}
                                 <div className="bg-primary_alt border border-secondary rounded-xl shadow-xs overflow-hidden md:shadow-none">
                                     {/* Card header */}
-                                    <div className="flex items-center justify-between pl-4 pr-3 py-3 border-b border-secondary">
-                                        <div className="flex items-center gap-3">
-                                            <div className="size-8 rounded-full bg-brand-secondary flex items-center justify-center shrink-0">
-                                                <FileCheck02 className="size-4 text-fg-brand-primary" />
-                                            </div>
-                                            <span className="text-md font-semibold text-secondary">Share some of your accounts</span>
+                                    <div className="flex items-center gap-3 pl-4 pr-3 py-3 border-b border-secondary">
+                                        <div className="size-8 rounded-full bg-brand-secondary flex items-center justify-center shrink-0">
+                                            <FileCheck02 className="size-4 text-fg-brand-primary" />
                                         </div>
-                                        <Tooltip title="This is a tooltip" description="Tooltips are used to describe or identify an element. In most scenarios, tooltips help the user understand meaning, function or alt-text." arrow placement="top right">
-                                            <TooltipTrigger className="size-8 flex items-center justify-center">
-                                                <HelpCircle className="size-4 text-fg-senary" />
-                                            </TooltipTrigger>
-                                        </Tooltip>
+                                        <span className="text-md font-semibold text-secondary">Share some of your accounts</span>
                                     </div>
-                                    {/* Card body - Connect bank OR upload */}
-                                    <div className="p-4 md:pb-2">
-                                        <div className="flex flex-col md:flex-row gap-3">
-                                            {/* Connect your bank */}
-                                            <button
-                                                className="relative flex-1 py-2 cursor-pointer disabled:cursor-not-allowed"
-                                                onClick={openPlaidLink}
-                                                disabled={plaidLoading || plaidSuccess}
-                                            >
-                                                <div className={`flex flex-col items-center justify-center gap-4 h-full min-h-[200px] rounded-lg border border-primary shadow-xs p-3 transition-colors ${!plaidSuccess && !plaidLoading ? "hover:bg-primary_hover" : ""}`}>
-                                                    {plaidLoading ? (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic">
-                                                                <Loading01 className="size-5 text-fg-secondary animate-spin" />
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="text-sm font-bold text-secondary">Connect your bank</p>
-                                                                <p className="text-sm text-tertiary">Connecting...</p>
-                                                            </div>
-                                                        </>
-                                                    ) : plaidSuccess ? (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic">
-                                                                <CheckSquareBroken className="size-5 text-fg-success-primary" />
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="text-sm font-bold text-secondary">Bank Connected</p>
-                                                                <p className="text-sm text-tertiary">Plaid Connection Successful</p>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic">
-                                                                <QrCode02 className="size-5 text-fg-secondary" />
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="text-sm font-bold text-secondary">Connect your bank</p>
-                                                                <p className="text-sm text-tertiary md:hidden">You'll continue on your bank's app or website</p>
-                                                                <p className="text-sm text-tertiary hidden md:block">You'll only need your phone</p>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                                {/* Badge — hidden once connected */}
-                                                {!plaidSuccess && (
-                                                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1.5 rounded bg-[#b8acd0]">
-                                                        <ZapFast className="size-4 text-brand-primary" />
-                                                        <span className="text-xs text-brand-primary">Takes less than a minute</span>
-                                                    </div>
-                                                )}
-                                            </button>
-                                            {/* Plaid error */}
-                                            {plaidError && (
-                                                <p className="text-sm text-error-primary px-1">{plaidError}</p>
-                                            )}
-
-                                            {/* OR divider */}
-                                            <div className="flex md:flex-col items-center gap-2 py-2 shrink-0">
-                                                <div className="flex-1 w-full md:w-px h-px md:h-full bg-border-primary" />
-                                                <span className="text-sm font-semibold text-quaternary">OR</span>
-                                                <div className="flex-1 w-full md:w-px h-px md:h-full bg-border-primary" />
-                                            </div>
-
-                                            {/* Upload options */}
-                                            <div className="flex-1 flex flex-col gap-4 py-2">
+                                    {/* Card body */}
+                                    <div className="p-4 flex flex-col gap-6 md:gap-8">
+                                        {/* Upload zones + privacy note */}
+                                        <div className="flex flex-col gap-4">
+                                            <div className="flex flex-col md:flex-row gap-4">
+                                                {/* Zone 1: bank statements */}
                                                 <input ref={statementsInputRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleStatementsChange} />
                                                 <button
-                                                    className="relative flex-1 flex items-center gap-4 rounded-lg p-3 md:p-7 min-h-32 hover:bg-primary_hover transition-colors disabled:cursor-not-allowed"
+                                                    type="button"
                                                     onClick={() => statementsInputRef.current?.click()}
                                                     disabled={uploadStatementsStatus === "uploading"}
-                                                >
-                                                    <svg className="absolute inset-0 size-full pointer-events-none" preserveAspectRatio="none">
-                                                        <rect x="0.5" y="0.5" width="calc(100% - 1px)" height="calc(100% - 1px)" rx="8" ry="8" fill="none" stroke="var(--color-border-primary)" strokeWidth="1" strokeDasharray="8 8" />
-                                                    </svg>
-                                                    {uploadStatementsStatus === "uploading" ? (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
-                                                                <Loading01 className="size-5 text-fg-secondary animate-spin" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <p className="text-sm font-bold text-secondary">Uploading...</p>
-                                                            </div>
-                                                        </>
-                                                    ) : uploadStatementsCount > 0 ? (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
-                                                                <CheckSquareBroken className="size-5 text-fg-success-primary" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <p className="text-sm font-bold text-secondary">Upload your past 6 months' bank statements</p>
-                                                                <p className="text-sm text-tertiary">{uploadStatementsCount} {uploadStatementsCount === 1 ? "file" : "files"} uploaded</p>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
-                                                                <UploadCloud02 className="size-5 text-fg-secondary" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <p className="text-sm font-bold text-secondary">Upload your past 6 months' bank statements</p>
-                                                                <p className="text-sm text-tertiary">PDF, max Xmb</p>
-                                                            </div>
-                                                        </>
+                                                    className={cx(
+                                                        "flex-1 min-w-0 flex items-center justify-center gap-4 md:gap-6 min-h-[100px] px-3 py-3 rounded-xl border transition-colors disabled:cursor-not-allowed",
+                                                        uploadStatementsCount > 0 ? "border-solid border-brand" : "border-dashed border-primary hover:bg-primary_hover",
                                                     )}
+                                                >
+                                                    <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
+                                                        {uploadStatementsStatus === "uploading"
+                                                            ? <Loading01 className="size-5 text-fg-secondary animate-spin" />
+                                                            : uploadStatementsCount > 0
+                                                                ? <CheckSquareBroken className="size-5 text-fg-success-primary" />
+                                                                : <UploadCloud02 className="size-5 text-fg-secondary" />}
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <p className="text-sm font-bold text-secondary">Upload your past 6 months' bank statements</p>
+                                                        <p className="text-sm text-tertiary">
+                                                            {uploadStatementsStatus === "uploading"
+                                                                ? "Uploading..."
+                                                                : uploadStatementsCount > 0
+                                                                    ? `${uploadStatementsCount} ${uploadStatementsCount === 1 ? "file" : "files"} uploaded`
+                                                                    : "PDF, max Xmb"}
+                                                        </p>
+                                                    </div>
                                                 </button>
+                                                {/* Zone 2: full set of accounts */}
                                                 <input ref={accountsInputRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleAccountsChange} />
                                                 <button
-                                                    className="relative flex-1 flex items-center gap-4 rounded-lg p-3 md:p-7 min-h-32 hover:bg-primary_hover transition-colors disabled:cursor-not-allowed"
+                                                    type="button"
                                                     onClick={() => accountsInputRef.current?.click()}
                                                     disabled={uploadAccountsStatus === "uploading"}
-                                                >
-                                                    <svg className="absolute inset-0 size-full pointer-events-none" preserveAspectRatio="none">
-                                                        <rect x="0.5" y="0.5" width="calc(100% - 1px)" height="calc(100% - 1px)" rx="8" ry="8" fill="none" stroke="var(--color-border-primary)" strokeWidth="1" strokeDasharray="8 8" />
-                                                    </svg>
-                                                    {uploadAccountsStatus === "uploading" ? (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
-                                                                <Loading01 className="size-5 text-fg-secondary animate-spin" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <p className="text-sm font-bold text-secondary">Uploading...</p>
-                                                            </div>
-                                                        </>
-                                                    ) : uploadAccountsCount > 0 ? (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
-                                                                <CheckSquareBroken className="size-5 text-fg-success-primary" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <p className="text-sm font-bold text-secondary">Upload last full set of accounts</p>
-                                                                <p className="text-sm text-tertiary">{uploadAccountsCount} {uploadAccountsCount === 1 ? "file" : "files"} uploaded</p>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
-                                                                <UploadCloud02 className="size-5 text-fg-secondary" />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <p className="text-sm font-bold text-secondary">Upload last full set of accounts</p>
-                                                                <p className="text-sm text-tertiary">PDF, max Xmb</p>
-                                                            </div>
-                                                        </>
+                                                    className={cx(
+                                                        "flex-1 min-w-0 flex items-center justify-center gap-4 md:gap-6 min-h-[100px] px-3 py-3 rounded-xl border transition-colors disabled:cursor-not-allowed",
+                                                        uploadAccountsCount > 0 ? "border-solid border-brand" : "border-dashed border-primary hover:bg-primary_hover",
                                                     )}
-                                                </button>
-                                                {/* Request paperwork card */}
-                                                <div className="bg-secondary border border-secondary rounded-xl p-3 shadow-xs flex flex-col gap-4">
-                                                    <div className="flex gap-3 items-start">
-                                                        <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
-                                                            <Mail05 className="size-5 text-fg-secondary" />
-                                                        </div>
-                                                        <div className="flex flex-col gap-1">
-                                                            <p className="text-sm font-semibold text-primary">Don't have these files at hand?</p>
-                                                            <p className="text-sm text-tertiary">Don't worry we've composed an email for you, just send it to your accountant.</p>
-                                                        </div>
+                                                >
+                                                    <div className="p-2.5 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic shrink-0">
+                                                        {uploadAccountsStatus === "uploading"
+                                                            ? <Loading01 className="size-5 text-fg-secondary animate-spin" />
+                                                            : uploadAccountsCount > 0
+                                                                ? <CheckSquareBroken className="size-5 text-fg-success-primary" />
+                                                                : <UploadCloud02 className="size-5 text-fg-secondary" />}
                                                     </div>
-                                                    <Button
-                                                        color="secondary"
-                                                        size="md"
-                                                        className="w-full"
-                                                        onClick={() => {
-                                                            const subject = encodeURIComponent("request for paperwork");
-                                                            const body = encodeURIComponent("Adipisicing duis fugiat ipsum consectetur officia ea anim pariatur in velit. Labore consectetur Lorem ad occaecat reprehenderit qui occaecat non aliquip sit minim id ad. Adipisicing cillum est ullamco elit laboris dolore aute pariatur adipisicing ea ullamco pariatur.");
-                                                            window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
-                                                        }}
-                                                    >
-                                                        Request paperwork
-                                                    </Button>
+                                                    <div className="text-left">
+                                                        <p className="text-sm font-bold text-secondary">Upload last full set of accounts</p>
+                                                        <p className="text-sm text-tertiary">
+                                                            {uploadAccountsStatus === "uploading"
+                                                                ? "Uploading..."
+                                                                : uploadAccountsCount > 0
+                                                                    ? `${uploadAccountsCount} ${uploadAccountsCount === 1 ? "file" : "files"} uploaded`
+                                                                    : "PDF, max Xmb"}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                            {/* Why-we-need-this banner */}
+                                            <div className="flex items-center gap-2 p-2 rounded-xl bg-brand-50 border border-brand-200 shadow-xs">
+                                                <div className="size-8 flex items-center justify-center shrink-0">
+                                                    <Lock01 className="size-4 text-fg-brand-primary" />
+                                                </div>
+                                                <p className="text-sm text-brand-primary">We need these to find the best rate and lenders need these to assess your application. Your documents are never sold.</p>
+                                            </div>
+                                        </div>
+                                        {/* Request paperwork card */}
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 p-4 rounded-xl bg-secondary border border-secondary shadow-xs">
+                                            <div className="flex items-start gap-3">
+                                                <div className="size-10 rounded-lg border border-secondary bg-primary shadow-xs-skeumorphic flex items-center justify-center shrink-0">
+                                                    <Mail05 className="size-5 text-fg-secondary" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <p className="text-sm font-semibold text-primary">Don't have these files at hand?</p>
+                                                    <p className="text-sm text-tertiary">Don't worry we've composed an email for you, just send it to your accountant.</p>
                                                 </div>
                                             </div>
+                                            <Button
+                                                color="secondary"
+                                                size="md"
+                                                className="shrink-0 w-full md:w-[220px]"
+                                                onClick={() => {
+                                                    const subject = encodeURIComponent("request for paperwork");
+                                                    const body = encodeURIComponent("Adipisicing duis fugiat ipsum consectetur officia ea anim pariatur in velit. Labore consectetur Lorem ad occaecat reprehenderit qui occaecat non aliquip sit minim id ad. Adipisicing cillum est ullamco elit laboris dolore aute pariatur adipisicing ea ullamco pariatur.");
+                                                    window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+                                                }}
+                                            >
+                                                Request paperwork
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
@@ -2489,10 +2562,14 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                             </div>
 
                         </div>{/* end inner content container */}
-                    </div>
+                    </div>{/* end card content (cardContentRef) */}
+                    </>
+                    )}{/* end submitted-vs-step content */}
+                        </div>{/* end sheet */}
+                        </motion.div>
+                    </AnimatePresence>
+                    </>
                     )}
-                    </div>{/* end card opacity animation */}
-                    </div>{/* end card height animation */}
                 </div>
             </div>
             <p className="text-xs text-tertiary text-center py-6 px-4">We may share the information you provide with our lending partners in line with our <a href="https://www.lovey.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>.</p>
