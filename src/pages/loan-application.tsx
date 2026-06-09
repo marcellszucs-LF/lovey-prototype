@@ -1,6 +1,6 @@
 import { ChangeEvent, Fragment, ReactNode, useEffect, useRef, useState } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { AlertCircle, AnnotationQuestion, ArrowLeft, ArrowRight, AtSign, BookOpen01, Building06, Check, CheckCircle, CheckSquareBroken, ChevronSelectorVertical, Dice1, Dice2, Dice3, Dice4, Disc01, FileCheck02, FileHeart02, Flag05, HelpCircle, Hourglass01, InfoCircle, Loading01, Lock01, Mail01, Mail05, Menu02, MinusCircle, MoonStar, PiggyBank01, Placeholder, Plus, PlusCircle, SearchMd, Settings01, Share05, Sun, UploadCloud02, User01, Users01, XClose } from "@untitledui/icons";
+import { AlertCircle, AnnotationQuestion, ArrowLeft, ArrowRight, AtSign, BookOpen01, Building06, Check, CheckCircle, CheckSquareBroken, ChevronSelectorVertical, Dice1, Dice2, Dice3, Dice4, Disc01, FileCheck02, FileHeart02, Flag05, HelpCircle, Hourglass01, InfoCircle, Loading01, Lock01, LogOut02, Mail01, Mail05, Menu02, MinusCircle, MoonStar, PiggyBank01, Placeholder, Plus, PlusCircle, SearchMd, Settings01, Share05, Sun, UploadCloud02, User01, Users01, XClose } from "@untitledui/icons";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import type { DateValue } from "react-aria-components";
 import { DateField } from "@/components/application/date-picker/date-field";
@@ -1054,8 +1054,11 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
             }}
         >
             {/* Header with logo - desktop only */}
-            <div className="hidden md:flex items-center pt-4 pb-8 px-8 lg:px-15">
+            <div className="hidden md:flex items-center justify-between pt-4 pb-8 px-8 lg:px-15">
                 <img src="/lovey-logo-purple.svg" alt="Lovey" className="h-12.5 w-auto" />
+                <Button color="tertiary" size="md" iconTrailing={LogOut02} onClick={() => { window.location.href = "/"; }}>
+                    Log out
+                </Button>
             </div>
 
             {/* Body */}
