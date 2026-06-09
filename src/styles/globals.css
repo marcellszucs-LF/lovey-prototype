@@ -125,17 +125,73 @@ input[type="search"]::-webkit-search-cancel-button {
     -webkit-appearance: none;
 }
 
-/* Clip the react-parallax-tilt glare to the card illustration's alpha so the
-   transparent parts of the PNG don't catch the shine.
-   !important is required because the library sets an inline mask on .glare-wrapper. */
-.tilt-card .glare-wrapper {
-    -webkit-mask-image: url("/Card.png") !important;
-    mask-image: url("/Card.png") !important;
-    -webkit-mask-size: 100% 100% !important;
-    mask-size: 100% 100% !important;
-    -webkit-mask-repeat: no-repeat !important;
-    mask-repeat: no-repeat !important;
-    -webkit-mask-position: center !important;
-    mask-position: center !important;
+/* ── Holographic card (adapted from pokemon-cards-css "rare holo") ──
+   Rainbow shine + scanlines + light-bars + glare, blended over the card art,
+   driven by the tilt via CSS variables and masked to the Card.png alpha so only
+   the artwork shimmers. The vars are set on an ancestor and inherit down. */
+/* Note: the --pointer-*/--background-*/--card-opacity vars are set on an ancestor
+   (the shadow wrapper) by the tilt handler and inherit down — they must NOT be
+   redeclared here, or the inherited (tilt-driven) values would be overridden. */
+.holo-card {
+    position: relative;
+}
+.holo-card > img {
+    display: block;
+    position: relative;
+    z-index: 1;
+}
+.holo-card__shine,
+.holo-card__glare {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: var(--card-opacity, 0);
+    transition: opacity 320ms ease-out;
+    -webkit-mask-image: url("/Card.png");
+    mask-image: url("/Card.png");
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+}
+.holo-card__shine {
+    z-index: 2;
+    --space: 5%;
+    --angle: -22deg;
+    background-image: repeating-linear-gradient(var(--angle),
+        hsla(283, 49%, 60%, 0.75) calc(var(--space) * 1),
+        hsla(2, 74%, 59%, 0.75) calc(var(--space) * 2),
+        hsla(53, 67%, 53%, 0.75) calc(var(--space) * 3),
+        hsla(93, 56%, 52%, 0.75) calc(var(--space) * 4),
+        hsla(176, 38%, 50%, 0.75) calc(var(--space) * 5),
+        hsla(228, 100%, 77%, 0.75) calc(var(--space) * 6),
+        hsla(283, 49%, 61%, 0.75) calc(var(--space) * 7));
+    background-blend-mode: color-dodge;
+    background-size: 300% 400%;
+    background-position: 0% var(--background-y, 50%);
+    filter: brightness(calc((var(--pointer-from-center, 0) * 0.3) + 0.5)) contrast(2.3) saturate(1);
+    mix-blend-mode: color-dodge;
+}
+.holo-card__shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(farthest-corner ellipse at calc(var(--pointer-x, 50%) * 0.5 + 25%) calc(var(--pointer-y, 50%) * 0.5 + 25%),
+        hsl(0, 0%, 100%) 5%,
+        hsla(300, 100%, 11%, 0.6) 40%,
+        hsl(0, 0%, 22%) 120%);
+    background-position: center center;
+    background-size: 400% 500%;
+    filter: brightness(calc((var(--pointer-from-center, 0) * 0.2) + 0.4)) contrast(0.85) saturate(1.1);
+    mix-blend-mode: hard-light;
+}
+.holo-card__glare {
+    z-index: 3;
+    background-image: radial-gradient(farthest-corner circle at var(--pointer-x, 50%) var(--pointer-y, 50%),
+        hsla(0, 0%, 100%, 1) 10%,
+        hsla(0, 0%, 100%, 0.6) 35%,
+        hsla(180, 11%, 35%, 1) 60%);
+    mix-blend-mode: soft-light;
 }
 

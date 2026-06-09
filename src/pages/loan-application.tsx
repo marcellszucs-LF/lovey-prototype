@@ -634,6 +634,16 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
         const sx = -(yPct / 100) * 24;
         const sy = 18 + (xPct / 100) * 16;
         el.style.filter = `drop-shadow(${sx}px ${sy}px 30px rgba(54, 41, 81, 0.33))`;
+        // Holographic foil pointer/position/opacity (xPct = vertical tilt, yPct = horizontal). Vars inherit to .holo-card.
+        const px = 50 - yPct / 2;
+        const py = 50 + xPct / 2;
+        el.style.setProperty("--pointer-x", `${px}%`);
+        el.style.setProperty("--pointer-y", `${py}%`);
+        el.style.setProperty("--background-x", `${50 - yPct / 3}%`);
+        el.style.setProperty("--background-y", `${50 + xPct / 3}%`);
+        const fromCenter = Math.min(1, Math.hypot(xPct, yPct) / 100);
+        el.style.setProperty("--pointer-from-center", String(fromCenter));
+        el.style.setProperty("--card-opacity", String(Math.min(1, 0.45 + fromCenter * 0.55)));
     };
 
     const handleSubmitApplication = () => {
@@ -1381,18 +1391,17 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             style={{ filter: "drop-shadow(0px 14px 24px rgba(54, 41, 81, 0.3))", transition: "filter 900ms cubic-bezier(.03,.98,.52,.99)" }}
                                         >
                                             <Tilt
-                                                className="tilt-card"
                                                 tiltMaxAngleX={10}
                                                 tiltMaxAngleY={10}
                                                 scale={1.02}
                                                 transitionSpeed={900}
-                                                glareEnable
-                                                glareMaxOpacity={0.3}
-                                                glareColor="#ffffff"
-                                                glarePosition="all"
                                                 onMove={({ tiltAngleXPercentage, tiltAngleYPercentage }) => applyCardShadow(cardShadowRefMobile.current, tiltAngleXPercentage, tiltAngleYPercentage)}
                                             >
-                                                <img src="/Card.png" alt="" className="w-[220px] h-auto block" />
+                                                <div className="holo-card">
+                                                    <img src="/Card.png" alt="" className="w-[220px] h-auto block" />
+                                                    <div className="holo-card__shine" aria-hidden />
+                                                    <div className="holo-card__glare" aria-hidden />
+                                                </div>
                                             </Tilt>
                                         </div>
                                     </div>
@@ -1409,18 +1418,17 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                 style={{ left: "55%", filter: "drop-shadow(0px 18px 30px rgba(54, 41, 81, 0.33))", transition: "filter 900ms cubic-bezier(.03,.98,.52,.99)" }}
                             >
                                 <Tilt
-                                    className="tilt-card"
                                     tiltMaxAngleX={12}
                                     tiltMaxAngleY={12}
                                     scale={1.03}
                                     transitionSpeed={900}
-                                    glareEnable
-                                    glareMaxOpacity={0.35}
-                                    glareColor="#ffffff"
-                                    glarePosition="all"
                                     onMove={({ tiltAngleXPercentage, tiltAngleYPercentage }) => applyCardShadow(cardShadowRef.current, tiltAngleXPercentage, tiltAngleYPercentage)}
                                 >
-                                    <img src="/Card.png" alt="" className="h-[420px] w-auto max-w-none block" />
+                                    <div className="holo-card">
+                                        <img src="/Card.png" alt="" className="h-[420px] w-auto max-w-none block" />
+                                        <div className="holo-card__shine" aria-hidden />
+                                        <div className="holo-card__glare" aria-hidden />
+                                    </div>
                                 </Tilt>
                             </div>
                         </div>
