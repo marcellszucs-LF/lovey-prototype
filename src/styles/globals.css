@@ -135,6 +135,22 @@ input[type="search"]::-webkit-search-cancel-button {
 .holo-card {
     position: relative;
 }
+/* Business name overlaid on the card's (now blank) header bar.
+   font-size is set per-view inline (it must scale with each card size). */
+.holo-card__name {
+    position: absolute;
+    top: 3.8%;
+    left: 9%;
+    height: 7.2%;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    line-height: 1;
+    color: #241c33;
+    white-space: nowrap;
+    pointer-events: none;
+}
 .holo-card > img {
     display: block;
     position: relative;

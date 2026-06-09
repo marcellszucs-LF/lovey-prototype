@@ -1,6 +1,6 @@
 import { ChangeEvent, Fragment, ReactNode, useEffect, useRef, useState } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { AlertCircle, AnnotationQuestion, ArrowLeft, ArrowRight, AtSign, BookOpen01, Building06, Check, CheckCircle, CheckSquareBroken, ChevronSelectorVertical, Dice1, Dice2, Dice3, Dice4, Disc01, FileCheck02, FileHeart02, Flag05, HelpCircle, Hourglass01, InfoCircle, Loading01, Lock01, LogOut02, Mail01, Mail05, Menu02, MinusCircle, MoonStar, PiggyBank01, Placeholder, Plus, PlusCircle, SearchMd, Settings01, Share05, Sun, UploadCloud02, User01, Users01, XClose } from "@untitledui/icons";
+import { AlertCircle, AnnotationQuestion, ArrowLeft, ArrowRight, AtSign, BookOpen01, Building06, Check, CheckCircle, CheckSquareBroken, ChevronSelectorVertical, Dice1, Dice2, Dice3, Dice4, Disc01, Download01, FileCheck02, FileHeart02, Flag05, HelpCircle, Hourglass01, InfoCircle, Loading01, Lock01, LogOut02, Mail01, Mail05, Menu02, MinusCircle, MoonStar, PiggyBank01, Placeholder, Plus, PlusCircle, SearchMd, Settings01, Share05, Sun, UploadCloud02, User01, Users01, XClose } from "@untitledui/icons";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import Tilt from "react-parallax-tilt";
 import type { DateValue } from "react-aria-components";
@@ -629,6 +629,9 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
     // Tilt-reactive drop shadow for the submitted card (drop-shadow follows the PNG's alpha, unlike box-shadow).
     const cardShadowRef = useRef<HTMLDivElement>(null);
     const cardShadowRefMobile = useRef<HTMLDivElement>(null);
+    const cardShadowRefBig = useRef<HTMLDivElement>(null);
+    // Click-to-expand "showcase" view for the submitted card.
+    const [cardExpanded, setCardExpanded] = useState(false);
     const applyCardShadow = (el: HTMLDivElement | null, xPct: number, yPct: number) => {
         if (!el) return;
         const sx = -(yPct / 100) * 24;
@@ -645,6 +648,52 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
         el.style.setProperty("--pointer-from-center", String(fromCenter));
         el.style.setProperty("--card-opacity", String(Math.min(1, 0.45 + fromCenter * 0.55)));
     };
+
+    // Composite the card (illustration + overlaid business name) onto a canvas and download it as a PNG.
+    const downloadCard = async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 605;
+        canvas.height = 938;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const img = new Image();
+        img.src = "/Card.png";
+        try {
+            await img.decode();
+        } catch {
+            return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        try {
+            await document.fonts.load("700 29px Outfit");
+        } catch {
+            /* fall back to system font */
+        }
+        ctx.font = "700 29px Outfit, system-ui, sans-serif";
+        ctx.fillStyle = "#241c33";
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "left";
+        ctx.fillText("Big Bidness Ltd.", 0.09 * canvas.width, 0.074 * canvas.height);
+        canvas.toBlob((blob) => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "lovey-card.png";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }, "image/png");
+    };
+
+    // Close the expanded card on Escape.
+    useEffect(() => {
+        if (!cardExpanded) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setCardExpanded(false); };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [cardExpanded]);
 
     const handleSubmitApplication = () => {
         if (stepAnimatingRef.current) return;
@@ -1380,14 +1429,17 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                     {displayedDashStep === 6 ? (
                     /* ─── Submitted view (slides up over the whole stack) ─── */
                     <div className="flex flex-col gap-4 md:gap-6 p-3 md:p-8">
-                        {/* Hero — illustration card is larger than the brand-coloured background and overflows it */}
-                        <div className="relative">
-                            <div className="rounded-xl border border-brand bg-brand-200 md:my-[58px]">
+                        {/* Hero — illustration card is larger than the brand-coloured background and overflows it.
+                            The wrapper reserves enough height (>= card height) so the overflowing card isn't clipped. */}
+                        <div className="relative md:flex md:flex-col md:justify-center md:min-h-[440px]">
+                            <div className="rounded-xl border border-brand bg-brand-200">
                                 <div className="px-6 py-6 md:px-10 md:py-8">
                                     {/* Illustration on mobile — sits inside the band */}
                                     <div className="md:hidden mb-6 flex justify-center">
                                         <div
                                             ref={cardShadowRefMobile}
+                                            onClick={() => setCardExpanded(true)}
+                                            className="cursor-pointer"
                                             style={{ filter: "drop-shadow(0px 14px 24px rgba(54, 41, 81, 0.3))", transition: "filter 900ms cubic-bezier(.03,.98,.52,.99)" }}
                                         >
                                             <Tilt
@@ -1402,11 +1454,12 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                                     <div className="holo-card__shine" aria-hidden />
                                                     <div className="holo-card__glare" aria-hidden />
                                                     <div className="holo-card__spotlight" aria-hidden />
+                                                    <div className="holo-card__name" style={{ fontSize: "11px" }}>Big Bidness Ltd.</div>
                                                 </div>
                                             </Tilt>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col gap-2 text-brand-primary md:w-[274px]">
+                                    <div className="flex flex-col gap-2 text-brand-primary md:w-1/2">
                                         <h2 className="text-display-sm font-medium leading-[1.2]">Big Bidess LTD's application for £48,000 is now submitted.</h2>
                                         <p className="text-md">You're done. There's nothing more you need to do right now, our team will be in touch with next steps.</p>
                                     </div>
@@ -1415,7 +1468,8 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                             {/* Illustration on desktop — taller than the band, overflowing top & bottom, with a parallax tilt + glare + tilt-reactive shadow */}
                             <div
                                 ref={cardShadowRef}
-                                className="hidden md:block absolute top-1/2 -translate-y-1/2"
+                                onClick={() => setCardExpanded(true)}
+                                className="hidden md:block absolute top-1/2 -translate-y-1/2 cursor-pointer"
                                 style={{ left: "55%", filter: "drop-shadow(0px 18px 30px rgba(54, 41, 81, 0.33))", transition: "filter 900ms cubic-bezier(.03,.98,.52,.99)" }}
                             >
                                 <Tilt
@@ -1430,6 +1484,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                         <div className="holo-card__shine" aria-hidden />
                                         <div className="holo-card__glare" aria-hidden />
                                         <div className="holo-card__spotlight" aria-hidden />
+                                        <div className="holo-card__name" style={{ fontSize: "13px" }}>Big Bidness Ltd.</div>
                                     </div>
                                 </Tilt>
                             </div>
@@ -2706,6 +2761,53 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                 </div>
             </div>
             <p className="text-xs text-tertiary text-center py-6 px-4">We may share the information you provide with our lending partners in line with our <a href="https://www.lovey.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>.</p>
+
+            {/* Expanded "showcase" card — zooms in big over a backdrop, keeps the holo + tilt */}
+            <AnimatePresence>
+                {cardExpanded && (
+                    <motion.div
+                        className="fixed inset-0 z-[60] flex items-center justify-center p-6"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        onClick={() => setCardExpanded(false)}
+                    >
+                        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+                        <motion.div
+                            className="relative flex flex-col items-center gap-5"
+                            initial={{ scale: 0.5, opacity: 0, y: 24 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.5, opacity: 0, y: 24 }}
+                            transition={{ type: "spring", duration: 0.5, bounce: 0.25 }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div
+                                ref={cardShadowRefBig}
+                                style={{ filter: "drop-shadow(0px 30px 60px rgba(0, 0, 0, 0.5))", transition: "filter 900ms cubic-bezier(.03,.98,.52,.99)" }}
+                            >
+                                <Tilt
+                                    tiltMaxAngleX={16}
+                                    tiltMaxAngleY={16}
+                                    transitionSpeed={900}
+                                    onMove={({ tiltAngleXPercentage, tiltAngleYPercentage }) => applyCardShadow(cardShadowRefBig.current, tiltAngleXPercentage, tiltAngleYPercentage)}
+                                >
+                                    <div className="holo-card">
+                                        <img src="/Card.png" alt="" className="h-[80vh] max-h-[760px] w-auto block" />
+                                        <div className="holo-card__shine" aria-hidden />
+                                        <div className="holo-card__glare" aria-hidden />
+                                        <div className="holo-card__spotlight" aria-hidden />
+                                        <div className="holo-card__name" style={{ fontSize: "clamp(13px, 2.3vh, 23px)" }}>Big Bidness Ltd.</div>
+                                    </div>
+                                </Tilt>
+                            </div>
+                            <Button color="primary" size="lg" iconLeading={Download01} onClick={downloadCard}>
+                                Download card
+                            </Button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Video Modal */}
             {showVideoModal && (
