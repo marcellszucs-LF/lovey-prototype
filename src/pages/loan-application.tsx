@@ -2,6 +2,7 @@ import { ChangeEvent, Fragment, ReactNode, useEffect, useRef, useState } from "r
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { AlertCircle, AnnotationQuestion, ArrowLeft, ArrowRight, AtSign, BookOpen01, Building06, Check, CheckCircle, CheckSquareBroken, ChevronSelectorVertical, Dice1, Dice2, Dice3, Dice4, Disc01, FileCheck02, FileHeart02, Flag05, HelpCircle, Hourglass01, InfoCircle, Loading01, Lock01, LogOut02, Mail01, Mail05, Menu02, MinusCircle, MoonStar, PiggyBank01, Placeholder, Plus, PlusCircle, SearchMd, Settings01, Share05, Sun, UploadCloud02, User01, Users01, XClose } from "@untitledui/icons";
 import { AnimatePresence, motion, type Variants } from "motion/react";
+import Tilt from "react-parallax-tilt";
 import type { DateValue } from "react-aria-components";
 import { DateField } from "@/components/application/date-picker/date-field";
 import { MonthYearField } from "@/components/application/date-picker/month-year-field";
@@ -625,6 +626,15 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
 
     const cardContentRef = useRef<HTMLDivElement>(null);
     const doneContentRef = useRef<HTMLDivElement>(null);
+    // Tilt-reactive drop shadow for the submitted card (drop-shadow follows the PNG's alpha, unlike box-shadow).
+    const cardShadowRef = useRef<HTMLDivElement>(null);
+    const cardShadowRefMobile = useRef<HTMLDivElement>(null);
+    const applyCardShadow = (el: HTMLDivElement | null, xPct: number, yPct: number) => {
+        if (!el) return;
+        const sx = -(yPct / 100) * 24;
+        const sy = 18 + (xPct / 100) * 16;
+        el.style.filter = `drop-shadow(${sx}px ${sy}px 30px rgba(54, 41, 81, 0.33))`;
+    };
 
     const handleSubmitApplication = () => {
         if (stepAnimatingRef.current) return;
@@ -1053,9 +1063,9 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                 animation: "fadeIn 300ms ease-out",
             }}
         >
-            {/* Header with logo - desktop only */}
-            <div className="hidden md:flex items-center justify-between pt-4 pb-8 px-8 lg:px-15">
-                <img src="/lovey-logo-purple.svg" alt="Lovey" className="h-12.5 w-auto" />
+            {/* Header with logo + log out */}
+            <div className="flex items-center justify-between pt-4 pb-4 px-4 md:pb-8 md:px-8 lg:px-15">
+                <img src="/lovey-logo-purple.svg" alt="Lovey" className="h-10 md:h-12.5 w-auto" />
                 <Button color="tertiary" size="md" iconTrailing={LogOut02} onClick={() => { window.location.href = "/"; }}>
                     Log out
                 </Button>
@@ -1360,16 +1370,58 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                     {displayedDashStep === 6 ? (
                     /* ─── Submitted view (slides up over the whole stack) ─── */
                     <div className="flex flex-col gap-4 md:gap-6 p-3 md:p-8">
-                        {/* Hero */}
-                        <div className="rounded-xl border border-brand bg-brand-200 overflow-hidden">
-                            <div className="flex flex-col-reverse md:flex-row gap-6 md:gap-10 items-center justify-center px-6 py-6 md:px-8">
-                                <div className="flex flex-col gap-2 text-brand-primary md:w-[274px]">
-                                    <h2 className="text-display-sm font-medium leading-[1.2]">Big Bidess LTD's application for £48,000 is now submitted.</h2>
-                                    <p className="text-md">You're done. There's nothing more you need to do right now, our team will be in touch with next steps.</p>
+                        {/* Hero — illustration card is larger than the brand-coloured background and overflows it */}
+                        <div className="relative">
+                            <div className="rounded-xl border border-brand bg-brand-200 md:my-[58px]">
+                                <div className="px-6 py-6 md:px-10 md:py-8">
+                                    {/* Illustration on mobile — sits inside the band */}
+                                    <div className="md:hidden mb-6 flex justify-center">
+                                        <div
+                                            ref={cardShadowRefMobile}
+                                            style={{ filter: "drop-shadow(0px 14px 24px rgba(54, 41, 81, 0.3))", transition: "filter 900ms cubic-bezier(.03,.98,.52,.99)" }}
+                                        >
+                                            <Tilt
+                                                className="tilt-card"
+                                                tiltMaxAngleX={10}
+                                                tiltMaxAngleY={10}
+                                                scale={1.02}
+                                                transitionSpeed={900}
+                                                glareEnable
+                                                glareMaxOpacity={0.3}
+                                                glareColor="#ffffff"
+                                                glarePosition="all"
+                                                onMove={({ tiltAngleXPercentage, tiltAngleYPercentage }) => applyCardShadow(cardShadowRefMobile.current, tiltAngleXPercentage, tiltAngleYPercentage)}
+                                            >
+                                                <img src="/Card.png" alt="" className="w-[220px] h-auto block" />
+                                            </Tilt>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2 text-brand-primary md:w-[274px]">
+                                        <h2 className="text-display-sm font-medium leading-[1.2]">Big Bidess LTD's application for £48,000 is now submitted.</h2>
+                                        <p className="text-md">You're done. There's nothing more you need to do right now, our team will be in touch with next steps.</p>
+                                    </div>
                                 </div>
-                                <div className="w-[240px] md:w-[270px] h-[360px] md:h-[400px] shrink-0 overflow-hidden">
-                                    <img src="/Card.png" alt="" className="w-full h-full object-cover object-top" />
-                                </div>
+                            </div>
+                            {/* Illustration on desktop — taller than the band, overflowing top & bottom, with a parallax tilt + glare + tilt-reactive shadow */}
+                            <div
+                                ref={cardShadowRef}
+                                className="hidden md:block absolute top-1/2 -translate-y-1/2"
+                                style={{ left: "55%", filter: "drop-shadow(0px 18px 30px rgba(54, 41, 81, 0.33))", transition: "filter 900ms cubic-bezier(.03,.98,.52,.99)" }}
+                            >
+                                <Tilt
+                                    className="tilt-card"
+                                    tiltMaxAngleX={12}
+                                    tiltMaxAngleY={12}
+                                    scale={1.03}
+                                    transitionSpeed={900}
+                                    glareEnable
+                                    glareMaxOpacity={0.35}
+                                    glareColor="#ffffff"
+                                    glarePosition="all"
+                                    onMove={({ tiltAngleXPercentage, tiltAngleYPercentage }) => applyCardShadow(cardShadowRef.current, tiltAngleXPercentage, tiltAngleYPercentage)}
+                                >
+                                    <img src="/Card.png" alt="" className="h-[420px] w-auto max-w-none block" />
+                                </Tilt>
                             </div>
                         </div>
                         {/* Card: What happens now? (FAQ) */}
@@ -1394,13 +1446,27 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             onClick={() => setOpenFaq(isOpen ? null : i)}
                                             className={cx("flex items-start justify-between gap-6 w-full text-left py-6", i > 0 && "border-t border-secondary")}
                                         >
-                                            <div className="flex flex-col gap-2 flex-1 min-w-0">
+                                            <div className="flex flex-col flex-1 min-w-0">
                                                 <p className="text-md font-semibold text-secondary">{item.q}</p>
-                                                {isOpen && <p className="text-md text-tertiary">{item.a}</p>}
+                                                <AnimatePresence initial={false}>
+                                                    {isOpen && (
+                                                        <motion.div
+                                                            key="answer"
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: "auto", opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
+                                                            transition={{ height: { duration: 0.28, ease: "easeInOut" }, opacity: { duration: 0.2, ease: "easeInOut" } }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <p className="text-md text-tertiary pt-2">{item.a}</p>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
                                             </div>
-                                            {isOpen
-                                                ? <MinusCircle className="size-6 text-fg-quaternary shrink-0" />
-                                                : <PlusCircle className="size-6 text-fg-quaternary shrink-0" />}
+                                            <div className="relative size-6 shrink-0 text-fg-quaternary">
+                                                <PlusCircle className={cx("absolute inset-0 size-6 transition-all duration-200", isOpen ? "opacity-0 rotate-90 scale-75" : "opacity-100 rotate-0 scale-100")} />
+                                                <MinusCircle className={cx("absolute inset-0 size-6 transition-all duration-200", isOpen ? "opacity-100 rotate-0 scale-100" : "opacity-0 -rotate-90 scale-75")} />
+                                            </div>
                                         </button>
                                     );
                                 })}

@@ -125,3 +125,17 @@ input[type="search"]::-webkit-search-cancel-button {
     -webkit-appearance: none;
 }
 
+/* Clip the react-parallax-tilt glare to the card illustration's alpha so the
+   transparent parts of the PNG don't catch the shine.
+   !important is required because the library sets an inline mask on .glare-wrapper. */
+.tilt-card .glare-wrapper {
+    -webkit-mask-image: url("/Card.png") !important;
+    mask-image: url("/Card.png") !important;
+    -webkit-mask-size: 100% 100% !important;
+    mask-size: 100% 100% !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
+    -webkit-mask-position: center !important;
+    mask-position: center !important;
+}
+
