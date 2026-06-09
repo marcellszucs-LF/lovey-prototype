@@ -1059,7 +1059,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
             </div>
 
             {/* Body */}
-            <div className={cx("flex-1 flex flex-col items-center md:px-8 lg:px-15", !showDashDone && "md:pb-24")}>
+            <div className={cx("flex flex-col items-center md:px-8 lg:px-15", !showDashDone && "md:pb-12")}>
                 {/* Journey progress — 7 steps (3 completed in the capture form), shown outside the white card */}
                 {!showDashDone && (
                     <div className="w-full max-w-256 px-2 md:px-0 pt-2 pb-4 md:pt-0 md:pb-6">
@@ -2378,11 +2378,6 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             </div>
                                             <span className="text-md font-semibold text-secondary">Your Business</span>
                                         </div>
-                                        <Tooltip title="This is a tooltip" description="Tooltips are used to describe or identify an element. In most scenarios, tooltips help the user understand meaning, function or alt-text." arrow placement="top right">
-                                            <TooltipTrigger className="size-8 flex items-center justify-center">
-                                                <HelpCircle className="size-4 text-fg-senary" />
-                                            </TooltipTrigger>
-                                        </Tooltip>
                                     </div>
                                     <div className="flex flex-col">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 px-4 py-4 md:px-5">
@@ -2434,11 +2429,6 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             </div>
                                             <span className="text-md font-semibold text-secondary">Legal Bits</span>
                                         </div>
-                                        <Tooltip title="This is a tooltip" description="Tooltips are used to describe or identify an element. In most scenarios, tooltips help the user understand meaning, function or alt-text." arrow placement="top right">
-                                            <TooltipTrigger className="size-8 flex items-center justify-center">
-                                                <HelpCircle className="size-4 text-fg-senary" />
-                                            </TooltipTrigger>
-                                        </Tooltip>
                                     </div>
                                     <div className="flex flex-col">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 px-4 py-4 md:px-5">
@@ -2521,11 +2511,6 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             </div>
                                             <span className="text-md font-semibold text-secondary">Directors</span>
                                         </div>
-                                        <Tooltip title="This is a tooltip" description="Tooltips are used to describe or identify an element. In most scenarios, tooltips help the user understand meaning, function or alt-text." arrow placement="top right">
-                                            <TooltipTrigger className="size-8 flex items-center justify-center">
-                                                <HelpCircle className="size-4 text-fg-senary" />
-                                            </TooltipTrigger>
-                                        </Tooltip>
                                     </div>
                                     <div className="flex flex-col">
                                         {[...applicants].sort((a, b) => b.ownership - a.ownership).map((d, index) => {
@@ -2569,11 +2554,6 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             </div>
                                             <span className="text-md font-semibold text-secondary">Finances</span>
                                         </div>
-                                        <Tooltip title="This is a tooltip" description="Tooltips are used to describe or identify an element. In most scenarios, tooltips help the user understand meaning, function or alt-text." arrow placement="top right">
-                                            <TooltipTrigger className="size-8 flex items-center justify-center">
-                                                <HelpCircle className="size-4 text-fg-senary" />
-                                            </TooltipTrigger>
-                                        </Tooltip>
                                     </div>
                                     <div className="flex flex-col">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 px-4 py-4 md:px-5">
