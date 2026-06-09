@@ -99,7 +99,7 @@ export const MonthYearField = ({ label, isDisabled, isInvalid, className, value,
     return (
         <div className={cx("flex flex-col gap-1.5", className)}>
             {label && (
-                <label {...labelProps} className="text-sm font-medium text-secondary">
+                <label {...labelProps} className="text-md font-medium text-secondary">
                     {label}
                 </label>
             )}

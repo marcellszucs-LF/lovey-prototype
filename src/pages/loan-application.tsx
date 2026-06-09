@@ -421,7 +421,7 @@ const UploadDocumentsContent = ({
                                             : <Loading01 className="size-8 text-fg-secondary shrink-0 animate-spin" />
                                         }
                                         <div className="flex flex-col gap-1 flex-1 min-w-0">
-                                            <p className="text-base font-medium text-secondary truncate">{file.name}</p>
+                                            <p className="text-md font-medium text-secondary truncate">{file.name}</p>
                                             <p className="text-sm text-tertiary">{file.size}</p>
                                         </div>
                                     </div>
@@ -462,7 +462,7 @@ const UploadDocumentsContent = ({
                                             : <Loading01 className="size-8 text-fg-secondary shrink-0 animate-spin" />
                                         }
                                         <div className="flex flex-col gap-1 flex-1 min-w-0">
-                                            <p className="text-base font-medium text-secondary truncate">{file.name}</p>
+                                            <p className="text-md font-medium text-secondary truncate">{file.name}</p>
                                             <p className="text-sm text-tertiary">{file.size}</p>
                                         </div>
                                     </div>
@@ -709,6 +709,8 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
         addressSearching: Record<number, boolean>;
         addressDropdownOpen: Record<number, boolean>;
         addressSearchText: Record<number, string>;
+        addressManual: Record<number, boolean>;
+        addressManualParts: Record<number, { line1: string; line2: string; city: string; postcode: string }>;
     }
     const [directorInfoMap, setDirectorInfoMap] = useState<Record<string, DirectorInfo>>({});
     // The single director who is the applicant for the loan (defaults to the first/top director).
@@ -726,6 +728,8 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
         addressSearching: {},
         addressDropdownOpen: {},
         addressSearchText: {},
+        addressManual: {},
+        addressManualParts: {},
     };
 
     const getDirectorInfo = (directorId: string): DirectorInfo => {
@@ -774,6 +778,37 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                 addressSearchText: { ...info.addressSearchText, [rowIndex]: address.address },
                 addressDropdownOpen: { ...info.addressDropdownOpen, [rowIndex]: false },
                 addressSearching: { ...info.addressSearching, [rowIndex]: false },
+            };
+        });
+    };
+
+    // Toggle a director address row between search and manual entry (mirrors the Trading address card).
+    const toggleDirectorAddressManual = (directorId: string, rowIndex: number) => {
+        updateDirectorInfo(directorId, (info) => {
+            const goingManual = !info.addressManual[rowIndex];
+            const updatedAddresses = [...info.addresses];
+            updatedAddresses[rowIndex] = { ...updatedAddresses[rowIndex], address: "" };
+            return {
+                addresses: updatedAddresses,
+                addressManual: { ...info.addressManual, [rowIndex]: goingManual },
+                addressManualParts: { ...info.addressManualParts, [rowIndex]: { line1: "", line2: "", city: "", postcode: "" } },
+                addressSearchText: { ...info.addressSearchText, [rowIndex]: "" },
+                addressDropdownOpen: { ...info.addressDropdownOpen, [rowIndex]: false },
+                addressSearching: { ...info.addressSearching, [rowIndex]: false },
+            };
+        });
+    };
+
+    const updateDirectorManualAddress = (directorId: string, rowIndex: number, field: "line1" | "line2" | "city" | "postcode", value: string) => {
+        updateDirectorInfo(directorId, (info) => {
+            const prev = info.addressManualParts[rowIndex] ?? { line1: "", line2: "", city: "", postcode: "" };
+            const parts = { ...prev, [field]: value };
+            const combined = [parts.line1, parts.line2, parts.city, parts.postcode].filter(Boolean).join(", ");
+            const updatedAddresses = [...info.addresses];
+            updatedAddresses[rowIndex] = { ...updatedAddresses[rowIndex], address: combined };
+            return {
+                addressManualParts: { ...info.addressManualParts, [rowIndex]: parts },
+                addresses: updatedAddresses,
             };
         });
     };
@@ -847,8 +882,8 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
     const turnoverNumeric = parseFloat(turnover12Months.replace(/,/g, "")) || 0;
     const vatAutoTicked = turnoverNumeric > 89999;
 
-    // Step 4 (document upload) is optional — Continue is always enabled.
-    const isDashboardStep4Valid = true;
+    // Step 4 (finances): require at least one file uploaded to both bank statements and accounts.
+    const isDashboardStep4Valid = uploadStatementsCount > 0 && uploadAccountsCount > 0;
 
     // Address history state - starts with one empty entry
     const [addresses, setAddresses] = useState<AddressEntry[]>([
@@ -1344,9 +1379,9 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                             </div>
                             <div className="flex flex-col px-4 md:px-12 py-2">
                                 {[
-                                    { q: "Lorem ipsum dolor sit amet, consectetur adipiscing elit?", a: "Qui et consectetur eiusmod ad deserunt mollit adipisicing nisi." },
-                                    { q: "Lorem ipsum dolor sit amet, consectetur adipiscing elit?", a: "Qui et consectetur eiusmod ad deserunt mollit adipisicing nisi." },
-                                    { q: "Lorem ipsum dolor sit amet, consectetur adipiscing elit?", a: "Qui et consectetur eiusmod ad deserunt mollit adipisicing nisi." },
+                                    { q: "When will I hear back?", a: "We'll be in touch by email as soon as there's an update on your application — so keep an eye on your inbox (and your spam folder, just in case). Most applicants hear back within one business day." },
+                                    { q: "Will someone call me?", a: "Possibly, yes. One of our account managers may give you a call if they need to discuss your application or have found you a match. It'll come from a UK number, so keep your phone handy." },
+                                    { q: "What if I'm not approved?", a: "We'll always let you know either way — no ghosting, ever. If we can't find you a match right now, we'll tell you." },
                                 ].map((item, i) => {
                                     const isOpen = openFaq === i;
                                     return (
@@ -1571,7 +1606,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                 <div className="p-4">
                                     <div className="flex flex-col md:flex-row gap-3">
                                         <div className="flex-1 flex flex-col gap-1.5">
-                                            <label className="text-secondary font-medium text-sm">What loan term works best for you?</label>
+                                            <label className="text-secondary font-medium text-md">What loan term works best for you?</label>
                                             <Select
                                                 placeholder="Select a term"
                                                 items={[
@@ -1588,7 +1623,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                             </Select>
                                         </div>
                                         <div className="flex-1 flex flex-col gap-1.5">
-                                            <label className="text-secondary font-medium text-sm">What is the reason you need a loan?</label>
+                                            <label className="text-secondary font-medium text-md">What is the reason you need a loan?</label>
                                             <Select
                                                 placeholder="Select a reason"
                                                 items={[
@@ -1631,7 +1666,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                     <div className="flex flex-col gap-1.5 w-full">
                                         {/* Label row with toggle - constrained to half width so toggle stays in place */}
                                         <div className="flex items-center justify-between md:w-1/2">
-                                            <label className="text-base font-medium text-secondary">Trading address</label>
+                                            <label className="text-md font-medium text-secondary">Trading address</label>
                                             <button
                                                 type="button"
                                                 onClick={() => {
@@ -1739,7 +1774,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                     {/* Row 1: Turnover 12 months + VAT checkbox */}
                                     <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
                                         <div className="flex flex-col gap-1.5 flex-1">
-                                            <label className="text-secondary font-medium text-sm">Your turnover for the past 12 months</label>
+                                            <label className="text-secondary font-medium text-md">Your turnover for the past 12 months</label>
                                             <MoneyInput value={turnover12Months} onChange={setTurnover12Months} />
                                             <p className="text-tertiary text-sm">Feel free to round to the nearest £1000</p>
                                         </div>
@@ -1757,7 +1792,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                     {/* Row 2: Turnover 2019 (with help icon) */}
                                     <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
                                         <div className="flex flex-col gap-1.5 flex-1">
-                                            <label className="text-secondary font-medium text-sm">Your turnover in 2019</label>
+                                            <label className="text-secondary font-medium text-md">Your turnover in 2019</label>
                                             <MoneyInput
                                                 value={turnover2019}
                                                 onChange={setTurnover2019}
@@ -1776,7 +1811,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                     {/* Row 3: New debt yes/no + amount */}
                                     <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
                                         <div className="flex flex-col gap-1.5 flex-1">
-                                            <label className="text-secondary font-medium text-sm">Did your business take on new debt in the last 12 months?</label>
+                                            <label className="text-secondary font-medium text-md">Did your business take on new debt in the last 12 months?</label>
                                             <ButtonGroup
                                                 className="flex w-full"
                                                 disallowEmptySelection
@@ -1789,7 +1824,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                         </div>
                                         {tookOnNewDebt === true ? (
                                             <div className="flex flex-col gap-1.5 flex-1">
-                                                <label className="text-secondary font-medium text-sm">How much debt did you take on?</label>
+                                                <label className="text-secondary font-medium text-md">How much debt did you take on?</label>
                                                 <MoneyInput value={newDebt} onChange={setNewDebt} />
                                             </div>
                                         ) : (
@@ -1799,7 +1834,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                     {/* Row 4: Profitable yes/no + profit amount */}
                                     <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
                                         <div className="flex flex-col gap-1.5 flex-1">
-                                            <label className="text-secondary font-medium text-sm">Was your business profitable in the last 12 months?</label>
+                                            <label className="text-secondary font-medium text-md">Was your business profitable in the last 12 months?</label>
                                             <ButtonGroup
                                                 className="flex w-full"
                                                 disallowEmptySelection
@@ -1812,7 +1847,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                         </div>
                                         {wasProfitable !== null ? (
                                             <div className="flex flex-col gap-1.5 flex-1">
-                                                <label className="text-secondary font-medium text-sm">{wasProfitable ? "How much profit did you make?" : "How much was your loss?"}</label>
+                                                <label className="text-secondary font-medium text-md">{wasProfitable ? "How much profit did you make?" : "How much was your loss?"}</label>
                                                 <MoneyInput value={profitLoss} onChange={setProfitLoss} />
                                             </div>
                                         ) : (
@@ -2030,45 +2065,84 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                                     {/* Group 2: Address rows - same 3-year history logic as step 1 */}
                                                     <div className="flex flex-col gap-4 md:gap-6">
                                                     {info.addresses.map((entry, rowIndex) => (
-                                                        <div key={rowIndex} className="flex flex-col md:flex-row gap-2 md:gap-4">
+                                                        <div key={rowIndex} className="flex flex-col md:flex-row gap-2 md:gap-4 items-start">
                                                             <div className="w-full md:w-1/2">
-                                                                <div
-                                                                    ref={(el) => { directorAddressInputRefs.current[`${director.id}-${rowIndex}`] = el; }}
-                                                                    className="relative w-full"
-                                                                >
-                                                                    <Input
-                                                                        label={rowIndex === 0 ? "Current address" : "Address before that"}
-                                                                        placeholder="Start typing to search"
-                                                                        icon={SearchMd}
-                                                                        value={info.addressSearchText[rowIndex] ?? entry.address}
-                                                                        onChange={(value) => handleDirectorAddressSearch(director.id, rowIndex, value)}
-                                                                    />
-                                                                    {info.addressDropdownOpen[rowIndex] && (
-                                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-primary border border-secondary rounded-lg shadow-lg z-10 py-1 max-h-55 overflow-y-auto">
-                                                                            {info.addressSearching[rowIndex] ? (
-                                                                                <div className="px-1.5 py-px">
-                                                                                    <div className="p-2 rounded-md">
-                                                                                        <p className="text-quaternary text-base">
-                                                                                            Searching for addresses..
-                                                                                        </p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            ) : (
-                                                                                staticAddresses.map((addr) => {
-                                                                                    const isSelected = entry.address === addr.address;
-                                                                                    return (
-                                                                                        <div key={addr.id} className="px-1.5 py-px">
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                onClick={() => handleDirectorAddressSelect(director.id, rowIndex, addr)}
-                                                                                                className={`w-full flex items-center gap-2 p-2 rounded-md text-left transition-colors hover:bg-active ${isSelected ? "bg-active" : ""}`}
-                                                                                            >
-                                                                                                <span className="text-primary text-base flex-1">{addr.address}</span>
-                                                                                                {isSelected && <Check className="size-5 text-fg-brand-primary shrink-0" />}
-                                                                                            </button>
+                                                                <div className="flex flex-col gap-1.5 w-full">
+                                                                    {/* Label row with manual-entry toggle (same pattern as Trading address) */}
+                                                                    <div className="flex items-center justify-between">
+                                                                        <label className="text-md font-medium text-secondary">{rowIndex === 0 ? "Current address" : "Address before that"}</label>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => toggleDirectorAddressManual(director.id, rowIndex)}
+                                                                            className="text-sm font-medium text-brand-secondary hover:text-brand-primary transition-colors"
+                                                                        >
+                                                                            {info.addressManual[rowIndex] ? "Search for address" : "Enter address manually"}
+                                                                        </button>
+                                                                    </div>
+                                                                    {info.addressManual[rowIndex] ? (
+                                                                        /* Manual address fields */
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                                            <Input
+                                                                                placeholder="Address line 1"
+                                                                                value={info.addressManualParts[rowIndex]?.line1 ?? ""}
+                                                                                onChange={(v) => updateDirectorManualAddress(director.id, rowIndex, "line1", v)}
+                                                                            />
+                                                                            <Input
+                                                                                placeholder="Address line 2 (optional)"
+                                                                                value={info.addressManualParts[rowIndex]?.line2 ?? ""}
+                                                                                onChange={(v) => updateDirectorManualAddress(director.id, rowIndex, "line2", v)}
+                                                                            />
+                                                                            <Input
+                                                                                placeholder="Town / City"
+                                                                                value={info.addressManualParts[rowIndex]?.city ?? ""}
+                                                                                onChange={(v) => updateDirectorManualAddress(director.id, rowIndex, "city", v)}
+                                                                            />
+                                                                            <Input
+                                                                                placeholder="Postcode"
+                                                                                value={info.addressManualParts[rowIndex]?.postcode ?? ""}
+                                                                                onChange={(v) => updateDirectorManualAddress(director.id, rowIndex, "postcode", v)}
+                                                                            />
+                                                                        </div>
+                                                                    ) : (
+                                                                        /* Address search combobox */
+                                                                        <div
+                                                                            ref={(el) => { directorAddressInputRefs.current[`${director.id}-${rowIndex}`] = el; }}
+                                                                            className="relative w-full"
+                                                                        >
+                                                                            <Input
+                                                                                placeholder="Start typing to search"
+                                                                                icon={SearchMd}
+                                                                                value={info.addressSearchText[rowIndex] ?? entry.address}
+                                                                                onChange={(value) => handleDirectorAddressSearch(director.id, rowIndex, value)}
+                                                                            />
+                                                                            {info.addressDropdownOpen[rowIndex] && (
+                                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-primary border border-secondary rounded-lg shadow-lg z-10 py-1 max-h-55 overflow-y-auto">
+                                                                                    {info.addressSearching[rowIndex] ? (
+                                                                                        <div className="px-1.5 py-px">
+                                                                                            <div className="p-2 rounded-md">
+                                                                                                <p className="text-quaternary text-base">
+                                                                                                    Searching for addresses..
+                                                                                                </p>
+                                                                                            </div>
                                                                                         </div>
-                                                                                    );
-                                                                                })
+                                                                                    ) : (
+                                                                                        staticAddresses.map((addr) => {
+                                                                                            const isSelected = entry.address === addr.address;
+                                                                                            return (
+                                                                                                <div key={addr.id} className="px-1.5 py-px">
+                                                                                                    <button
+                                                                                                        type="button"
+                                                                                                        onClick={() => handleDirectorAddressSelect(director.id, rowIndex, addr)}
+                                                                                                        className={`w-full flex items-center gap-2 p-2 rounded-md text-left transition-colors hover:bg-active ${isSelected ? "bg-active" : ""}`}
+                                                                                                    >
+                                                                                                        <span className="text-primary text-base flex-1">{addr.address}</span>
+                                                                                                        {isSelected && <Check className="size-5 text-fg-brand-primary shrink-0" />}
+                                                                                                    </button>
+                                                                                                </div>
+                                                                                            );
+                                                                                        })
+                                                                                    )}
+                                                                                </div>
                                                                             )}
                                                                         </div>
                                                                     )}
@@ -3306,7 +3380,7 @@ export const LoanApplication = () => {
                                                 <>
                                                     {/* Borrow amount input with £ prefix */}
                                                     <div className="flex flex-col gap-1.5 w-full">
-                                                        <label className="text-base font-medium text-secondary">
+                                                        <label className="text-md font-medium text-secondary">
                                                             How much would you like to borrow?
                                                         </label>
                                                         <div className={`flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset overflow-hidden ${borrowAmountError ? "ring-error_subtle" : "ring-primary"} focus-within:ring-2 focus-within:ring-brand ${borrowAmountError ? "focus-within:ring-error" : ""}`}>
@@ -3381,7 +3455,7 @@ export const LoanApplication = () => {
                                                         </>
                                                     ) : (
                                                     <div ref={companyInputRef} className="flex flex-col gap-1.5 w-full">
-                                                        <label id="company-search-label" className="text-base font-medium text-secondary">
+                                                        <label id="company-search-label" className="text-md font-medium text-secondary">
                                                             What is your company's name?
                                                         </label>
                                                         <div className="relative w-full">
@@ -3648,7 +3722,7 @@ export const LoanApplication = () => {
                                         <div className="flex flex-col gap-5 w-full">
                                             {/* Name fields - side by side */}
                                             <div className="flex flex-col gap-1.5 w-full">
-                                                <label className="text-base font-medium text-secondary">
+                                                <label className="text-md font-medium text-secondary">
                                                     What is your name?
                                                 </label>
                                                 <div className="flex gap-1.5 w-full">
@@ -3667,7 +3741,7 @@ export const LoanApplication = () => {
 
                                             {/* Phone number with +44 prefix */}
                                             <div className="flex flex-col gap-1.5 w-full">
-                                                <label className="text-base font-medium text-secondary">
+                                                <label className="text-md font-medium text-secondary">
                                                     What is your phone number?
                                                 </label>
                                                 <div className={`flex w-full h-11 rounded-lg bg-primary shadow-xs ring-1 ring-inset overflow-hidden ${phoneError ? "ring-error_subtle" : "ring-primary"}`}>
@@ -3691,7 +3765,7 @@ export const LoanApplication = () => {
 
                                             {/* House ownership - Yes/No button group */}
                                             <div className="flex flex-col gap-1.5 w-full">
-                                                <label className="text-base font-medium text-secondary">
+                                                <label className="text-md font-medium text-secondary">
                                                     Do any of the directors own a house in the UK?
                                                 </label>
                                                 <div className="flex w-full border border-primary rounded-lg shadow-xs-skeumorphic overflow-hidden h-10">

@@ -14,7 +14,7 @@ export const DateField = ({ label, isDisabled, className, ...props }: DateFieldP
         <I18nProvider locale="en-GB">
         <AriaDateField {...props} isDisabled={isDisabled} className={cx("flex flex-col gap-1.5", className as string)}>
             {label && (
-                <Label className="text-sm font-medium text-secondary">
+                <Label className="text-md font-medium text-secondary">
                     {label}
                 </Label>
             )}
