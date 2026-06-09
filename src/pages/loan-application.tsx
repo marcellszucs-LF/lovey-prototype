@@ -1401,6 +1401,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                                     <img src="/Card.png" alt="" className="w-[220px] h-auto block" />
                                                     <div className="holo-card__shine" aria-hidden />
                                                     <div className="holo-card__glare" aria-hidden />
+                                                    <div className="holo-card__spotlight" aria-hidden />
                                                 </div>
                                             </Tilt>
                                         </div>
@@ -1428,6 +1429,7 @@ const DashboardStep1 = ({ externalDashStep, firstName, lastName, email, onStepCh
                                         <img src="/Card.png" alt="" className="h-[420px] w-auto max-w-none block" />
                                         <div className="holo-card__shine" aria-hidden />
                                         <div className="holo-card__glare" aria-hidden />
+                                        <div className="holo-card__spotlight" aria-hidden />
                                     </div>
                                 </Tilt>
                             </div>
